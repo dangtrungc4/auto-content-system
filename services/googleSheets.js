@@ -63,6 +63,8 @@ module.exports = {
             const hashtag = row[6] || '';
             const status = row[7] || '';
 
+            // Kiểm tra ngày (chỉ lấy bài trong ngày hiện tại)
+            if (dateStr !== currentDateStr) continue;
             // Kiểm tra trạng thái "Chưa đăng"
             if (status.trim().toLowerCase() === 'chưa đăng') {
                 // Kiểm tra thời gian (Đơn giản hóa: So sánh giờ và phút, hoặc bỏ qua kiểm tra ngày nếu chỉ cần chạy theo giờ)
