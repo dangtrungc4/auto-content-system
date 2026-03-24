@@ -31,6 +31,7 @@ async function loadConfig() {
 }
 
 module.exports = {
+    prisma,
     loadConfig,
     getConfig: () => currentConfig,
     saveConfig: async (newConfig) => {

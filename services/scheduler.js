@@ -48,6 +48,16 @@ async function processPosts() {
                 const fbResult = await facebook.postContent(post.caption, imageUrl);
                 addLog('success', `Posted to Facebook successfully: Post ID ${fbResult.id}`);
 
+                // 2.1 Save to Database PostHistory
+                await configService.prisma.postRecord.create({
+                    data: {
+                        fbPostId: fbResult.id,
+                        caption: post.caption,
+                        imageUrl: imageUrl
+                    }
+                }).catch(e => console.error('Error saving post record:', e.message));
+
+
                 // 3. Update Sheet
                 await googleSheets.updatePostStatus(post.rowIndex, 'Đã đăng');
                 stats.posted++;

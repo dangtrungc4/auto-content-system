@@ -73,6 +73,18 @@ app.get('/api/facebook/pages', async (req, res) => {
     }
 });
 
+app.get('/api/posts/history', async (req, res) => {
+    try {
+        const history = await configService.prisma.postRecord.findMany({
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json({ success: true, history });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+
 app.listen(PORT, async () => {
     console.log(`Server is running on http://localhost:${PORT}`);
     // Auto start scheduler if config exists

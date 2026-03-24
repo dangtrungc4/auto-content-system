@@ -26,6 +26,8 @@ async function getSheetsAPI() {
 }
 
 module.exports = {
+    getAuthClient,
+    getSheetsAPI,
     getPendingPosts: async () => {
         const config = configService.getConfig();
         if (!config.sheetId) throw new Error('Chưa cấu hình Google Sheet ID.');
@@ -45,7 +47,15 @@ module.exports = {
 
         const pending = [];
         const now = new Date();
-        const currentDateStr = now.toLocaleDateString('vi-VN'); // Ex: 25/12/2023 - adjust based on your format
+        // Normalize server date: "24/3/2026" -> "24/3/2026" (or "24/03/2026" -> "24/3/2026")
+        const formatDate = (d) => {
+            const parts = d.split(/[\/\-\.]/); // Handle /, -, . as separators
+            if (parts.length !== 3) return d;
+            // Return as D/M/YYYY without leading zeros
+            return `${parseInt(parts[0])}/${parseInt(parts[1])}/${parts[2]}`;
+        };
+
+        const currentDateStr = formatDate(now.toLocaleDateString('vi-VN'));
         const currentHour = now.getHours();
         const currentMinute = now.getMinutes();
 
@@ -64,7 +74,7 @@ module.exports = {
             const status = row[7] || '';
 
             // Kiểm tra ngày (chỉ lấy bài trong ngày hiện tại)
-            if (dateStr !== currentDateStr) continue;
+            if (formatDate(dateStr) !== currentDateStr) continue;
             // Kiểm tra trạng thái "Chưa đăng"
             if (status.trim().toLowerCase() === 'chưa đăng') {
                 // Kiểm tra thời gian (Đơn giản hóa: So sánh giờ và phút, hoặc bỏ qua kiểm tra ngày nếu chỉ cần chạy theo giờ)

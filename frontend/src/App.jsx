@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
-import { Bot, LayoutDashboard, Settings as SettingsIcon } from 'lucide-react';
+import History from './components/History';
+import { Bot, LayoutDashboard, Settings as SettingsIcon, History as HistoryIcon } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -26,6 +27,15 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  const getPageTitle = () => {
+    switch(activeTab) {
+      case 'dashboard': return 'Dashboard Overview';
+      case 'settings': return 'Configuration Settings';
+      case 'history': return 'Post History';
+      default: return 'Automated Content System';
+    }
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-900 text-slate-100 font-sans">
       <aside className="w-64 bg-slate-800 border-r border-slate-700 flex flex-col pt-6 pb-6 shadow-xl z-10">
@@ -39,6 +49,12 @@ export default function App() {
             className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === 'dashboard' ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}`}
           >
             <LayoutDashboard size={20} /> Dashboard
+          </button>
+          <button 
+            onClick={() => setActiveTab('history')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === 'history' ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}`}
+          >
+            <HistoryIcon size={20} /> History
           </button>
           <button 
             onClick={() => setActiveTab('settings')}
@@ -57,19 +73,18 @@ export default function App() {
         <div className="p-8 max-w-7xl mx-auto w-full">
           <header className="mb-10 flex justify-between items-center">
             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
-              {activeTab === 'dashboard' ? 'Dashboard Overview' : 'Configuration Settings'}
+              {getPageTitle()}
             </h1>
           </header>
           
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {activeTab === 'dashboard' ? (
-              <Dashboard systemState={systemState} refreshData={fetchData} />
-            ) : (
-              <Settings />
-            )}
+            {activeTab === 'dashboard' && <Dashboard systemState={systemState} refreshData={fetchData} />}
+            {activeTab === 'history' && <History />}
+            {activeTab === 'settings' && <Settings />}
           </div>
         </div>
       </main>
     </div>
   );
 }
+
