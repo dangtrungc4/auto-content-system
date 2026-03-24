@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Content System | Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="dark-theme">
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fa-solid fa-robot"></i>
+                <span>ContentBot</span>
+            </div>
+            <nav class="nav-menu">
+                <a href="#dashboard" class="nav-item active" data-target="dashboard">
+                    <i class="fa-solid fa-chart-line"></i> Dashboard
+                </a>
+                <a href="#settings" class="nav-item" data-target="settings">
+                    <i class="fa-solid fa-gear"></i> Settings
+                </a>
+            </nav>
+            <div class="status-indicator" id="systemStatus">
+                <span class="dot stopped"></span>
+                <span class="status-text">System Stopped</span>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar">
+                <h1>Dashboard overview</h1>
+                <div class="actions">
+                    <button class="btn btn-outline" id="btnRunNow">
+                        <i class="fa-solid fa-bolt"></i> Run Now
+                    </button>
+                    <button class="btn btn-primary" id="btnToggleEngine">
+                        <i class="fa-solid fa-play"></i> Start Engine
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="section-dashboard" class="content-section active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon info"><i class="fa-solid fa-clock"></i></div>
+                        <div class="stat-info">
+                            <h3>Pending Posts</h3>
+                            <h2 id="statPending">0</h2>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon success"><i class="fa-solid fa-check-circle"></i></div>
+                        <div class="stat-info">
+                            <h3>Total Posted</h3>
+                            <h2 id="statPosted">0</h2>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon danger"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="stat-info">
+                            <h3>Failed Posts</h3>
+                            <h2 id="statFailed">0</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="logs-container">
+                    <div class="logs-header">
+                        <h2>System Logs</h2>
+                        <button class="btn-icon" id="btnRefreshLogs" title="Refresh">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                    </div>
+                    <div class="logs-viewer" id="logsViewer">
+                        <!-- Logs will be injected here -->
+                        <div class="log-entry info"><span class="time">[System]</span> Welcome to Auto Content System</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="section-settings" class="content-section">
+                <div class="settings-card glass-panel">
+                    <h2>Configuration Details</h2>
+                    <form id="configForm">
+                        <div class="form-group">
+                            <label>Cron Schedule Pattern</label>
+                            <input type="text" id="cronSchedule" placeholder="*/5 * * * *" required>
+                            <small>Default is every 5 minutes. Learn <a href="https://crontab.guru/" target="_blank">crontab syntax</a>.</small>
+                        </div>
+
+                        <h3 class="section-title">Google Sheets Integration</h3>
+                        <div class="form-group">
+                            <label>Google Sheet ID</label>
+                            <input type="text" id="sheetId" placeholder="1BxiMvs0XRYFgwnTE...">
+                        </div>
+                        <div class="form-group">
+                            <label>Google Service Account Email</label>
+                            <input type="email" id="googleClientEmail" placeholder="service-account@project.iam.gserviceaccount.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Google Private Key</label>
+                            <textarea id="googlePrivateKey" rows="4" placeholder="-----BEGIN PRIVATE KEY-----\nMIIEv..."></textarea>
+                        </div>
+
+                        <h3 class="section-title">Facebook Integration</h3>
+                        <div class="form-group">
+                            <label>Facebook App ID</label>
+                            <input type="text" id="fbAppId" placeholder="App ID">
+                        </div>
+                        <div class="form-group">
+                            <label>User Access Token <small>(dùng để lấy Page Token)</small></label>
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                <input type="password" id="fbUserToken" placeholder="EAABxxx... (User Token)" style="flex:1;">
+                                <button type="button" class="btn btn-outline" id="btnFetchPages" style="white-space:nowrap;">
+                                    <i class="fa-solid fa-cloud-arrow-down"></i> Fetch Pages
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group" id="pageSelectGroup" style="display:none;">
+                            <label>Chọn Page</label>
+                            <select id="fbPageSelect" style="width:100%;padding:10px 14px;background:#1e2535;border:1px solid #2d3748;border-radius:8px;color:#e2e8f0;">
+                                <option value="">-- Chọn Fanpage --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Page ID <small>(tự động điền khi chọn Page)</small></label>
+                            <input type="text" id="fbPageId" placeholder="123456789" readonly style="background:#111827;cursor:not-allowed;">
+                        </div>
+                        <div class="form-group">
+                            <label>Page Access Token <small>(tự động điền khi chọn Page)</small></label>
+                            <input type="password" id="fbPageToken" placeholder="EAAB... (Page Token)" readonly style="background:#111827;cursor:not-allowed;">
+                        </div>
+
+                        <h3 class="section-title">Image Generation</h3>
+                        <div class="form-group">
+                            <label>Unsplash Access Key (Optional)</label>
+                            <input type="text" id="unsplashKey" placeholder="Client ID from Unsplash Developers">
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary" id="btnSaveConfig">Save Configuration</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

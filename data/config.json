@@ -1,0 +1,9 @@
+{
+  "sheetId": "",
+  "googleClientEmail": "",
+  "googlePrivateKey": "",
+  "fbAppId": "",
+  "fbPageToken": "",
+  "unsplashKey": "",
+  "cronSchedule": "*/5 * * * *"
+}

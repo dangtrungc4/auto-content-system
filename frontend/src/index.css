@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-slate-900 text-slate-100;
+  }
+}
+
+.glass-panel {
+  @apply bg-slate-800/60 backdrop-blur-md border border-slate-700/50 shadow-xl;
+}
+
+.log-entry { margin-bottom: 4px; padding-left: 8px; border-left: 3px solid transparent; }
+.log-entry .time { color: #94a3b8; margin-right: 8px; }
+.log-entry.info { color: #fff; border-left-color: #3b82f6; }
+.log-entry.success { color: #10b981; border-left-color: #10b981; }
+.log-entry.error { color: #ef4444; border-left-color: #ef4444; }

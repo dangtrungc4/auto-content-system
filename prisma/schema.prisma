@@ -1,0 +1,21 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Config {
+  id                Int     @id @default(1)
+  cronSchedule      String? @default("*/5 * * * *")
+  sheetId           String?
+  googleClientEmail String?
+  googlePrivateKey  String? @db.Text
+  fbAppId           String?
+  fbUserToken       String? @db.Text
+  fbPageToken       String? @db.Text
+  fbPageId          String?
+  unsplashKey       String?
+}
