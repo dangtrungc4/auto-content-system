@@ -12,15 +12,21 @@ async function fetchFbEngagement(fbPostId) {
     const config = configService.getConfig();
     if (!config.fbPageToken) return { likes: 0, comments: 0, shares: 0 };
     try {
-        const res = await axios.get(`https://graph.facebook.com/v25.0/${fbPostId}`, {
+        // Dùng định dạng {page_id}_{post_id} để truy cập được toàn bộ Post object
+        const fullPostId = `${config.fbPageId}_${fbPostId}`;
+        
+        // Dùng fields để lấy reactions, comments và shares trong cùng 1 request
+        const res = await axios.get(`https://graph.facebook.com/v25.0/${fullPostId}`, {
             params: {
-                fields: 'likes.summary(true),comments.summary(true)',
+                fields: 'reactions.summary(total_count),comments.summary(total_count),shares',
                 access_token: config.fbPageToken
             }
         });
+        
         const data = res.data;
+        console.log(data); // In kết quả mới ra để kiểm tra
         return {
-            likes: data.likes?.summary?.total_count || 0,
+            likes: data.reactions?.summary?.total_count || 0,
             comments: data.comments?.summary?.total_count || 0,
             shares: data.shares?.count || 0
         };

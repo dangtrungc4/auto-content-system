@@ -77,10 +77,38 @@ app.get('/api/facebook/pages', async (req, res) => {
 
 app.get('/api/posts/history', async (req, res) => {
     try {
+        const { page = 1, limit = 9, search = '', status = '' } = req.query;
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+
+        const where = {};
+        if (search) {
+            where.caption = { contains: search };
+        }
+        if (status) {
+            where.status = status;
+        }
+
+        const countQuery = Object.keys(where).length > 0 ? { where } : undefined;
+        const total = await configService.prisma.postRecord.count(countQuery);
+
         const history = await configService.prisma.postRecord.findMany({
-            orderBy: { createdAt: 'desc' }
+            where,
+            orderBy: { createdAt: 'desc' },
+            skip: (pageNum - 1) * limitNum,
+            take: limitNum
         });
-        res.json({ success: true, history });
+
+        res.json({ 
+            success: true, 
+            history, 
+            pagination: {
+                total,
+                page: pageNum,
+                limit: limitNum,
+                totalPages: Math.ceil(total / limitNum)
+            }
+        });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
