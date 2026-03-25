@@ -113,7 +113,7 @@ export default function Analytics() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
         <StatCard icon={BarChart2} label="Tổng bài đăng" value={s.total} color="bg-blue-600" />
         <StatCard icon={CheckCircle} label="Thành công" value={s.success} color="bg-emerald-600"
           sub={`${successRate}% success rate`} />

@@ -7,6 +7,7 @@ const schedulerService = require('./services/scheduler');
 const sheetService = require('./services/googleSheets');
 const fbService = require('./services/facebook');
 const analyticsService = require('./services/analytics');
+const parseService = require('./services/parse');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -118,6 +119,20 @@ app.post('/api/analytics/sync-engagement', async (req, res) => {
     try {
         await analyticsService.syncEngagement();
         res.json({ success: true, message: 'Engagement synced' });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Parse textarea content → Google Sheet
+app.post('/api/parse', async (req, res) => {
+    const { text } = req.body;
+    if (!text || typeof text !== 'string' || !text.trim()) {
+        return res.status(400).json({ success: false, error: 'Trường "text" không được để trống.' });
+    }
+    try {
+        const data = await parseService.parseAndSave(text.trim());
+        res.json({ success: true, data });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }

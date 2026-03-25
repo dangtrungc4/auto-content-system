@@ -3,7 +3,8 @@ import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 import History from './components/History';
 import Analytics from './components/Analytics';
-import { Bot, LayoutDashboard, Settings as SettingsIcon, History as HistoryIcon, BarChart2 } from 'lucide-react';
+import Parse from './components/Parse';
+import { Bot, LayoutDashboard, Settings as SettingsIcon, History as HistoryIcon, BarChart2, FilePen } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -34,6 +35,7 @@ export default function App() {
       case 'settings': return 'Configuration Settings';
       case 'history': return 'Post History';
       case 'analytics': return 'Analytics';
+      case 'parse': return 'Thêm bài viết mới';
       default: return 'Automated Content System';
     }
   };
@@ -53,16 +55,22 @@ export default function App() {
             <LayoutDashboard size={20} /> Dashboard
           </button>
           <button 
-            onClick={() => setActiveTab('history')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === 'history' ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}`}
+            onClick={() => setActiveTab('parse')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === 'parse' ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}`}
           >
-            <HistoryIcon size={20} /> History
+            <FilePen size={20} /> Thêm bài viết
           </button>
           <button 
             onClick={() => setActiveTab('analytics')}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === 'analytics' ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}`}
           >
             <BarChart2 size={20} /> Analytics
+          </button>
+          <button 
+            onClick={() => setActiveTab('history')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === 'history' ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}`}
+          >
+            <HistoryIcon size={20} /> History
           </button>
           <button 
             onClick={() => setActiveTab('settings')}
@@ -87,6 +95,7 @@ export default function App() {
           
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             {activeTab === 'dashboard' && <Dashboard systemState={systemState} refreshData={fetchData} />}
+            {activeTab === 'parse' && <Parse />}
             {activeTab === 'history' && <History />}
             {activeTab === 'analytics' && <Analytics />}
             {activeTab === 'settings' && <Settings />}

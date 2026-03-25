@@ -85,7 +85,7 @@ module.exports = {
                         pending.push({
                             rowIndex: i + 1, // 1-based index cho Google Sheet API
                             topic,
-                            caption: caption ? caption + '\n\n' + hashtag : hashtag,
+                            caption: caption ? caption + '\n' + content + '\n\n' + hashtag : hashtag,
                             imageUrl
                         });
                     }
@@ -94,7 +94,7 @@ module.exports = {
                     pending.push({
                         rowIndex: i + 1,
                         topic,
-                        caption: caption ? caption + '\n\n' + hashtag : hashtag,
+                        caption: caption ? caption + '\n' + content + '\n\n' + hashtag : hashtag,
                         imageUrl
                     });
                 }
