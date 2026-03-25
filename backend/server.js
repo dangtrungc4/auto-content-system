@@ -147,4 +147,7 @@ app.listen(PORT, async () => {
     if (config.sheetId && config.fbPageToken) {
         schedulerService.start();
     }
+    if (config.fbPageToken) {
+        analyticsService.startAutoSync();
+    }
 });

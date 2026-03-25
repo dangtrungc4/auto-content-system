@@ -2,17 +2,19 @@ const { PrismaClient } = require('@prisma/client');
 const axios = require('axios');
 const prisma = new PrismaClient();
 const configService = require('./config');
+const cron = require('node-cron');
 
 /**
  * Fetch engagement (likes, comments, shares) from Facebook Graph API for a post
  */
 async function fetchFbEngagement(fbPostId) {
+    if (!fbPostId) return { likes: 0, comments: 0, shares: 0 };
     const config = configService.getConfig();
     if (!config.fbPageToken) return { likes: 0, comments: 0, shares: 0 };
     try {
         const res = await axios.get(`https://graph.facebook.com/v25.0/${fbPostId}`, {
             params: {
-                fields: 'likes.summary(true),comments.summary(true),shares',
+                fields: 'likes.summary(true),comments.summary(true)',
                 access_token: config.fbPageToken
             }
         });
@@ -22,7 +24,8 @@ async function fetchFbEngagement(fbPostId) {
             comments: data.comments?.summary?.total_count || 0,
             shares: data.shares?.count || 0
         };
-    } catch {
+    } catch (error) {
+        console.error(`FB Engagement Fetch Error [${fbPostId}]:`, error.response?.data || error.message);
         return { likes: 0, comments: 0, shares: 0 };
     }
 }
@@ -121,4 +124,20 @@ async function getTopPosts(limit = 5) {
     return posts;
 }
 
-module.exports = { getSummaryStats, getPostsByPeriod, getTopPosts, syncEngagement };
+/**
+ * Start Auto Sync
+ */
+function startAutoSync() {
+    // Sync periodically every 30 minutes
+    cron.schedule('*/30 * * * *', async () => {
+        console.log('Auto syncing engagement from FB...');
+        try {
+            await syncEngagement();
+            console.log('Auto sync engagement completed.');
+        } catch (error) {
+            console.error('Auto sync engagement failed:', error.message);
+        }
+    });
+}
+
+module.exports = { getSummaryStats, getPostsByPeriod, getTopPosts, syncEngagement, startAutoSync };
