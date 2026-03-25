@@ -99,7 +99,6 @@ export default function Analytics() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-100">Analytics</h2>
           <p className="text-slate-400 text-sm mt-1">Thống kê hiệu suất đăng bài</p>
         </div>
         <button
