@@ -6,6 +6,7 @@ const configService = require('./services/config');
 const schedulerService = require('./services/scheduler');
 const sheetService = require('./services/googleSheets');
 const fbService = require('./services/facebook');
+const analyticsService = require('./services/analytics');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -79,6 +80,44 @@ app.get('/api/posts/history', async (req, res) => {
             orderBy: { createdAt: 'desc' }
         });
         res.json({ success: true, history });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Analytics routes
+app.get('/api/analytics/summary', async (req, res) => {
+    try {
+        const stats = await analyticsService.getSummaryStats();
+        res.json({ success: true, ...stats });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/analytics/chart', async (req, res) => {
+    const { period = 'day', limit = 30 } = req.query;
+    try {
+        const data = await analyticsService.getPostsByPeriod(period, parseInt(limit));
+        res.json({ success: true, data });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/analytics/top-posts', async (req, res) => {
+    try {
+        const posts = await analyticsService.getTopPosts(5);
+        res.json({ success: true, posts });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.post('/api/analytics/sync-engagement', async (req, res) => {
+    try {
+        await analyticsService.syncEngagement();
+        res.json({ success: true, message: 'Engagement synced' });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }

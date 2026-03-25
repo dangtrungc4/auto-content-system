@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 import History from './components/History';
-import { Bot, LayoutDashboard, Settings as SettingsIcon, History as HistoryIcon } from 'lucide-react';
+import Analytics from './components/Analytics';
+import { Bot, LayoutDashboard, Settings as SettingsIcon, History as HistoryIcon, BarChart2 } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -32,6 +33,7 @@ export default function App() {
       case 'dashboard': return 'Dashboard Overview';
       case 'settings': return 'Configuration Settings';
       case 'history': return 'Post History';
+      case 'analytics': return 'Analytics';
       default: return 'Automated Content System';
     }
   };
@@ -57,6 +59,12 @@ export default function App() {
             <HistoryIcon size={20} /> History
           </button>
           <button 
+            onClick={() => setActiveTab('analytics')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === 'analytics' ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}`}
+          >
+            <BarChart2 size={20} /> Analytics
+          </button>
+          <button 
             onClick={() => setActiveTab('settings')}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === 'settings' ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}`}
           >
@@ -80,6 +88,7 @@ export default function App() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             {activeTab === 'dashboard' && <Dashboard systemState={systemState} refreshData={fetchData} />}
             {activeTab === 'history' && <History />}
+            {activeTab === 'analytics' && <Analytics />}
             {activeTab === 'settings' && <Settings />}
           </div>
         </div>

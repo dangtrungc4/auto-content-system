@@ -25,6 +25,10 @@ model PostRecord {
   fbPostId  String   @unique
   caption   String?  @db.Text
   imageUrl  String?  @db.Text
+  likes     Int      @default(0)
+  comments  Int      @default(0)
+  shares    Int      @default(0)
+  status    String?  @default("success")
   createdAt DateTime @default(now())
 }
 
