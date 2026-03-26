@@ -166,15 +166,29 @@ app.post('/api/analytics/auto-sync/stop', (req, res) => {
     res.json({ success: true, isRunning: false });
 });
 
-// Parse textarea content → Google Sheet
+// Parse textarea content (No save)
 app.post('/api/parse', async (req, res) => {
     const { text, imageUrl } = req.body;
     if (!text || typeof text !== 'string' || !text.trim()) {
         return res.status(400).json({ success: false, error: 'Trường "text" không được để trống.' });
     }
     try {
-        const data = await parseService.parseAndSave(text.trim(), imageUrl);
+        const data = await parseService.parseOnly(text.trim(), imageUrl);
         res.json({ success: true, data });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Save parsed data to Google Sheet
+app.post('/api/save', async (req, res) => {
+    try {
+        const data = req.body;
+        if (!data || !data.caption) {
+            return res.status(400).json({ success: false, error: 'Dữ liệu không hợp lệ.' });
+        }
+        const result = await parseService.saveToSheet(data);
+        res.json({ success: true, result });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }

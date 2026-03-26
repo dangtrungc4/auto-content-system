@@ -55,13 +55,13 @@ function randomPostTime() {
 }
 
 /**
- * Parse textarea → append Google Sheet
+ * Chỉ parse dữ liệu từ textarea, chưa save vào Sheet
  *
  * @param {string} text  Raw textarea input
  * @param {string} providedImageUrl (Optional) cụ thể cho link ảnh
- * @returns {object}     Parsed + sheet row data
+ * @returns {object}     Parsed data
  */
-async function parseAndSave(text, providedImageUrl = '') {
+async function parseOnly(text, providedImageUrl = '') {
     const { caption, content, hashtag } = parseText(text);
 
     // Ngày hôm nay theo vi-VN
@@ -85,8 +85,17 @@ async function parseAndSave(text, providedImageUrl = '') {
     // Trạng thái mặc định
     const status = 'Chưa đăng';
 
-    // Append vào Google Sheet
-    // Column order: A:Ngày | B:Giờ | C:Chủ đề | D:Content | E:Caption | F:Image URL | G:Hashtag | H:Trạng thái
+    return { caption, content, hashtag, date, time, topic, imageUrl, status };
+}
+
+/**
+ * Lưu dữ liệu đã parse vào Google Sheet
+ * 
+ * @param {object} data  Dữ liệu từ parseOnly
+ */
+async function saveToSheet(data) {
+    const { date, time, topic, content, caption, imageUrl, hashtag, status } = data;
+
     const config = configService.getConfig();
     if (!config.sheetId) {
         throw new Error('Chưa cấu hình Google Sheet ID.');
@@ -103,7 +112,7 @@ async function parseAndSave(text, providedImageUrl = '') {
         }
     });
 
-    return { caption, content, hashtag, date, time, imageUrl, status };
+    return { success: true };
 }
 
-module.exports = { parseText, parseAndSave };
+module.exports = { parseText, parseOnly, saveToSheet };

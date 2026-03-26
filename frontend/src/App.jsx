@@ -34,7 +34,7 @@ export default function App() {
     switch(activeTab) {
       case 'dashboard': return 'Dashboard Overview';
       case 'settings': return 'Configuration Settings';
-      case 'history': return 'Post History';
+      case 'history': return 'Manage Posts';
       case 'analytics': return 'Analytics';
       case 'parse': return 'Add New Post';
       default: return 'Automated Content System';
@@ -87,7 +87,7 @@ export default function App() {
             className={`flex items-center rounded-xl font-medium transition-all ${isSidebarOpen ? 'px-4 gap-3' : 'px-0 justify-center'} py-3 ${activeTab === 'history' ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'} overflow-hidden whitespace-nowrap`}
           >
             <div className="shrink-0 flex items-center justify-center"><HistoryIcon size={20} /></div>
-            <span className={`transition-all duration-300 ${isSidebarOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>History</span>
+            <span className={`transition-all duration-300 ${isSidebarOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>Manage Posts</span>
           </button>
           
           <button 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Wand2, Image, Quote, AlignLeft, Hash, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { FileText, Wand2, Image, Quote, AlignLeft, Hash, Calendar, Clock, AlertCircle, Save, Check, CheckCircle } from 'lucide-react';
 
 export default function Parse() {
   const [text, setText] = useState('');
@@ -7,6 +7,9 @@ export default function Parse() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(null);
 
   // default text for hint
   const placeholder = `[ SG • 2026 . 03 . 25 ]\n\n"ĐÊM CÓ ĐOM ĐÓM"\n\nNgày xưa, đêm không tối hẳn.\nCứ vào hồi nhá nhem, lũ đom đóm bắt đầu thắp đèn...\n\n#gocnhocuamia #miake`;
@@ -29,6 +32,7 @@ export default function Parse() {
       const data = await res.json();
       if (data.success) {
         setResult(data.data);
+        setIsSaved(false);
       } else {
         setError(data.error || "Có lỗi xảy ra");
       }
@@ -36,6 +40,39 @@ export default function Parse() {
       setError("Lỗi kết nối server: " + err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!result || isSaved) return;
+    setSaving(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(result)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsSaved(true);
+        setSuccess("Đã lưu nội dung vào Google Sheet thành công!");
+        setText('');
+        setImageUrl('');
+        // Tự động xóa preview sau 3 giây để sẵn sàng cho bài mới
+        setTimeout(() => {
+          setResult(null);
+          setIsSaved(false);
+          setSuccess(null);
+        }, 3000);
+      } else {
+        setError(data.error || "Có lỗi khi lưu vào Sheet");
+      }
+    } catch (err) {
+      setError("Lỗi kết nối server: " + err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -80,6 +117,13 @@ export default function Parse() {
           </div>
         )}
 
+        {success && (
+          <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg flex items-start gap-2 text-sm">
+            <CheckCircle size={16} className="mt-0.5 shrink-0" />
+            <span>{success}</span>
+          </div>
+        )}
+
         <button 
           onClick={handleParse}
           disabled={loading}
@@ -90,7 +134,7 @@ export default function Parse() {
           ) : (
             <Wand2 size={18} />
           )}
-          {loading ? 'Đang xử lý...' : 'Parse & Lưu vào Sheet'}
+          {loading ? 'Đang xử lý...' : 'Bước 1: Parse & Xem trước'}
         </button>
       </div>
 
@@ -103,11 +147,13 @@ export default function Parse() {
             </div>
             <h2 className="text-xl font-semibold text-slate-100">Bản xem trước</h2>
           </div>
-          {result && (
-            <span className="px-3 py-1 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 rounded-full text-xs font-semibold uppercase tracking-wider">
-              {result.status || 'Chưa đăng'}
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {result && (
+              <span className="px-3 py-1 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 rounded-full text-xs font-semibold uppercase tracking-wider">
+                {result.status || 'Chưa đăng'}
+              </span>
+            )}
+          </div>
         </div>
 
         {!result ? (
@@ -162,6 +208,25 @@ export default function Parse() {
                 {result.hashtag || <span className="text-slate-500 italic">Không có hashtag</span>}
               </div>
             </div>
+
+            <button 
+              onClick={handleSave}
+              disabled={saving || isSaved}
+              className={`w-full py-3.5 px-4 rounded-xl font-semibold shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.98] ${
+                isSaved 
+                  ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 cursor-default'
+                  : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-500/20'
+              }`}
+            >
+              {saving ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : isSaved ? (
+                <Check size={18} />
+              ) : (
+                <Save size={18} />
+              )}
+              {isSaved ? 'Đã lưu thành công' : (saving ? 'Đang lưu...' : 'Bước 2: Xác nhận & Lưu vào Sheet')}
+            </button>
 
           </div>
         )}
