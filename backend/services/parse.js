@@ -58,9 +58,10 @@ function randomPostTime() {
  * Parse textarea → append Google Sheet
  *
  * @param {string} text  Raw textarea input
+ * @param {string} providedImageUrl (Optional) cụ thể cho link ảnh
  * @returns {object}     Parsed + sheet row data
  */
-async function parseAndSave(text) {
+async function parseAndSave(text, providedImageUrl = '') {
     const { caption, content, hashtag } = parseText(text);
 
     // Ngày hôm nay theo vi-VN
@@ -73,9 +74,13 @@ async function parseAndSave(text) {
     // Chủ đề để trống
     const topic = '';
 
-    // Tìm ảnh bằng dòng 2 của caption (tên bài)
-    const titleLine = caption.split('\n')[1] || caption.split('\n')[0];
-    const imageUrl = (await imageService.searchImage(titleLine)) || '';
+    // Ưu tiên providedImageUrl, nếu không có mới tìm trên Unsplash
+    let imageUrl = providedImageUrl;
+    if (!imageUrl) {
+        // Tìm ảnh bằng dòng 2 của caption (tên bài)
+        const titleLine = caption.split('\n')[1] || caption.split('\n')[0];
+        imageUrl = (await imageService.searchImage(titleLine)) || '';
+    }
 
     // Trạng thái mặc định
     const status = 'Chưa đăng';

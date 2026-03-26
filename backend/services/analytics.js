@@ -24,7 +24,6 @@ async function fetchFbEngagement(fbPostId) {
         });
         
         const data = res.data;
-        console.log(data); // In kết quả mới ra để kiểm tra
         return {
             likes: data.reactions?.summary?.total_count || 0,
             comments: data.comments?.summary?.total_count || 0,

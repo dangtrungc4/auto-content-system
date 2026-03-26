@@ -3,6 +3,7 @@ import { FileText, Wand2, Image, Quote, AlignLeft, Hash, Calendar, Clock, AlertC
 
 export default function Parse() {
   const [text, setText] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
@@ -23,7 +24,7 @@ export default function Parse() {
       const res = await fetch('/api/parse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({ text, imageUrl })
       });
       const data = await res.json();
       if (data.success) {
@@ -52,6 +53,18 @@ export default function Parse() {
         <p className="text-slate-400 text-sm mb-4 bg-slate-900/50 p-3 rounded-lg border border-slate-800">
           Format: <code className="text-emerald-400 font-mono">[ Địa điểm • Ngày ]</code> → <code className="text-blue-400 font-mono">"Tên bài"</code> → Nội dung → <code className="text-purple-400 font-mono">#hashtag</code>
         </p>
+
+        <div className="flex items-center gap-3 mb-2 px-1">
+          <Image size={16} className="text-slate-400" />
+          <span className="text-sm font-medium text-slate-400">Link ảnh (Không bắt buộc)</span>
+        </div>
+        <input 
+          type="text"
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+          placeholder="Dán link ảnh tại đây (Ví dụ: https://unsplash.com/...)"
+          className="w-full bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-sans mb-4"
+        />
 
         <textarea 
           value={text}

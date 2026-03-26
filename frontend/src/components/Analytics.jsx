@@ -179,7 +179,7 @@ export default function Analytics() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis dataKey="period" tick={{ fill: '#94a3b8', fontSize: 11 }} />
                   <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={<CustomTooltip />} cursor={false} />
                   <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
                   <Bar dataKey="likes" name="Likes" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="comments" name="Comments" fill="#f59e0b" radius={[4, 4, 0, 0]} />

@@ -154,12 +154,12 @@ app.post('/api/analytics/sync-engagement', async (req, res) => {
 
 // Parse textarea content → Google Sheet
 app.post('/api/parse', async (req, res) => {
-    const { text } = req.body;
+    const { text, imageUrl } = req.body;
     if (!text || typeof text !== 'string' || !text.trim()) {
         return res.status(400).json({ success: false, error: 'Trường "text" không được để trống.' });
     }
     try {
-        const data = await parseService.parseAndSave(text.trim());
+        const data = await parseService.parseAndSave(text.trim(), imageUrl);
         res.json({ success: true, data });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
