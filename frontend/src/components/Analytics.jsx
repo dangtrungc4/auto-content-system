@@ -191,14 +191,14 @@ export default function Analytics() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
+        <StatCard icon={Users} label="Người theo dõi" value={s.followersCount} color="bg-pink-600" sub={`${s.fanCount.toLocaleString()} lượt thích trang`} />
         <StatCard icon={BarChart2} label="Tổng bài đăng" value={s.total} color="bg-blue-600" />
-        <StatCard icon={CheckCircle} label="Thành công" value={s.success} color="bg-emerald-600"
-          sub={`${successRate}% success rate`} />
-        <StatCard icon={XCircle} label="Thất bại" value={s.failed} color="bg-red-600" />
+        {/* <StatCard icon={CheckCircle} label="Thành công" value={s.success} color="bg-emerald-600"
+          sub={`${successRate}% success rate`} /> */}
+        {/* <StatCard icon={XCircle} label="Thất bại" value={s.failed} color="bg-red-600" /> */}
         <StatCard icon={ThumbsUp} label="Tổng Likes" value={s.totalLikes} color="bg-violet-600" />
         <StatCard icon={MessageSquare} label="Tổng Comments" value={s.totalComments} color="bg-amber-600" />
         <StatCard icon={Share2} label="Tổng Shares" value={s.totalShares} color="bg-cyan-600" />
-        <StatCard icon={Users} label="Người theo dõi" value={s.followersCount} color="bg-pink-600" sub={`${s.fanCount.toLocaleString()} lượt thích trang`} />
       </div>
 
       {/* Chart Section */}
