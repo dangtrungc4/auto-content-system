@@ -55,32 +55,56 @@ export default function Analytics() {
   const [autoSyncRunning, setAutoSyncRunning] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [chartLoading, setChartLoading] = useState(false);
+
+  const fetchSummary = async () => {
+    try {
+      const res = await fetch('/api/analytics/summary').then(r => r.json());
+      if (res.success) setSummary(res);
+    } catch (err) { console.error('Summary fetch error:', err); }
+  };
+
+  const fetchTopPosts = async () => {
+    try {
+      const res = await fetch('/api/analytics/top-posts').then(r => r.json());
+      if (res.success) setTopPosts(res.posts);
+    } catch (err) { console.error('Top posts fetch error:', err); }
+  };
+
+  const fetchChartData = async (p = period) => {
+    setChartLoading(true);
+    try {
+      const res = await fetch(`/api/analytics/chart?period=${p}&limit=30`).then(r => r.json());
+      if (res.success) setChartData(res.data);
+    } catch (err) {
+      console.error('Chart fetch error:', err);
+    } finally {
+      setChartLoading(false);
+    }
+  };
 
   const fetchAll = useCallback(async (p = period) => {
     setLoading(true);
     try {
-      const [sumRes, chartRes, topRes] = await Promise.all([
-        fetch('/api/analytics/summary').then(r => r.json()),
-        fetch(`/api/analytics/chart?period=${p}&limit=30`).then(r => r.json()),
-        fetch('/api/analytics/top-posts').then(r => r.json()),
-      ]);
-      if (sumRes.success) setSummary(sumRes);
-      if (chartRes.success) setChartData(chartRes.data);
-      if (topRes.success) setTopPosts(topRes.posts);
+      await Promise.all([fetchSummary(), fetchChartData(p), fetchTopPosts()]);
       setLastUpdated(new Date());
-    } catch (err) {
-      console.error('Analytics fetch error:', err);
     } finally {
       setLoading(false);
     }
   }, [period]);
 
+  // Initial fetch on mount
   useEffect(() => { 
     fetchAll(period);
-    // Fetch auto-sync status on mount
+    // Fetch auto-sync status
     fetch('/api/analytics/auto-sync-status')
       .then(r => r.json())
       .then(res => { if (res.success) setAutoSyncRunning(res.isRunning); });
+  }, []);
+
+  // Refresh chart only when period changes
+  useEffect(() => {
+    fetchChartData(period);
   }, [period]);
 
   // Polling logic: fetch data every 30 seconds if autoSync is running
@@ -178,7 +202,7 @@ export default function Analytics() {
       </div>
 
       {/* Chart Section */}
-      <div className="bg-slate-800/70 border border-slate-700 rounded-2xl p-6">
+      <div className={`bg-slate-800/70 border border-slate-700 rounded-2xl p-6 transition-opacity ${chartLoading ? 'opacity-50 pointer-events-none' : ''}`}>
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2 text-slate-200 font-semibold">
             <TrendingUp size={20} className="text-blue-400" />
