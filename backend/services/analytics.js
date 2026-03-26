@@ -129,12 +129,17 @@ async function getTopPosts(limit = 5) {
     return posts;
 }
 
+let autoSyncTask = null;
+
 /**
  * Start Auto Sync
  */
 function startAutoSync() {
+    if (autoSyncTask) {
+        return; // Already running
+    }
     // Sync periodically every 30 minutes
-    cron.schedule('*/30 * * * *', async () => {
+    autoSyncTask = cron.schedule('*/30 * * * *', async () => {
         console.log('Auto syncing engagement from FB...');
         try {
             await syncEngagement();
@@ -143,6 +148,33 @@ function startAutoSync() {
             console.error('Auto sync engagement failed:', error.message);
         }
     });
+    console.log('Auto sync engagement started (every 30 mins).');
 }
 
-module.exports = { getSummaryStats, getPostsByPeriod, getTopPosts, syncEngagement, startAutoSync };
+/**
+ * Stop Auto Sync
+ */
+function stopAutoSync() {
+    if (autoSyncTask) {
+        autoSyncTask.stop();
+        autoSyncTask = null;
+        console.log('Auto sync engagement stopped.');
+    }
+}
+
+/**
+ * Check if Auto Sync is running
+ */
+function isAutoSyncRunning() {
+    return autoSyncTask !== null;
+}
+
+module.exports = { 
+    getSummaryStats, 
+    getPostsByPeriod, 
+    getTopPosts, 
+    syncEngagement, 
+    startAutoSync,
+    stopAutoSync,
+    isAutoSyncRunning
+};

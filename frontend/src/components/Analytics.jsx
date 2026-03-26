@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, ThumbsUp, MessageSquare, Share2, CheckCircle,
-  XCircle, BarChart2, RefreshCw, Award, Calendar
+  XCircle, BarChart2, RefreshCw, Award, Calendar, ToggleLeft, ToggleRight
 } from 'lucide-react';
 
 const PERIODS = [
@@ -52,6 +52,8 @@ export default function Analytics() {
   const [period, setPeriod] = useState('day');
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [autoSyncRunning, setAutoSyncRunning] = useState(false);
+  const [toggling, setToggling] = useState(false);
 
   const fetchAll = useCallback(async (p = period) => {
     setLoading(true);
@@ -71,7 +73,26 @@ export default function Analytics() {
     }
   }, [period]);
 
-  useEffect(() => { fetchAll(period); }, [period]);
+  useEffect(() => { 
+    fetchAll(period);
+    // Fetch auto-sync status on mount
+    fetch('/api/analytics/auto-sync-status')
+      .then(r => r.json())
+      .then(res => { if (res.success) setAutoSyncRunning(res.isRunning); });
+  }, [period]);
+
+  const toggleAutoSync = async () => {
+    setToggling(true);
+    try {
+      const endpoint = autoSyncRunning ? '/api/analytics/auto-sync/stop' : '/api/analytics/auto-sync/start';
+      const res = await fetch(endpoint, { method: 'POST' }).then(r => r.json());
+      if (res.success) setAutoSyncRunning(res.isRunning);
+    } catch (err) {
+      console.error('Toggle auto-sync error:', err);
+    } finally {
+      setToggling(false);
+    }
+  };
 
   const syncEngagement = async () => {
     setSyncing(true);
@@ -101,14 +122,29 @@ export default function Analytics() {
         <div>
           <p className="text-slate-400 text-sm mt-1">Thống kê hiệu suất đăng bài</p>
         </div>
-        <button
-          onClick={syncEngagement}
-          disabled={syncing}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition-all"
-        >
-          <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
-          Sync Engagement
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleAutoSync}
+            disabled={toggling}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+              autoSyncRunning 
+                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20' 
+                : 'bg-slate-700/50 text-slate-400 border border-slate-700 hover:bg-slate-700 hover:text-slate-300'
+            }`}
+          >
+            {autoSyncRunning ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+            Auto Sync: {autoSyncRunning ? 'On' : 'Off'}
+          </button>
+
+          <button
+            onClick={syncEngagement}
+            disabled={syncing}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition-all"
+          >
+            <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
+            Sync Engagement
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}

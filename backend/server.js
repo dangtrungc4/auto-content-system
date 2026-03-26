@@ -152,6 +152,20 @@ app.post('/api/analytics/sync-engagement', async (req, res) => {
     }
 });
 
+app.get('/api/analytics/auto-sync-status', (req, res) => {
+    res.json({ success: true, isRunning: analyticsService.isAutoSyncRunning() });
+});
+
+app.post('/api/analytics/auto-sync/start', (req, res) => {
+    analyticsService.startAutoSync();
+    res.json({ success: true, isRunning: true });
+});
+
+app.post('/api/analytics/auto-sync/stop', (req, res) => {
+    analyticsService.stopAutoSync();
+    res.json({ success: true, isRunning: false });
+});
+
 // Parse textarea content → Google Sheet
 app.post('/api/parse', async (req, res) => {
     const { text, imageUrl } = req.body;
