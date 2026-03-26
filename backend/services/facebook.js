@@ -30,5 +30,31 @@ module.exports = {
             const errorMsg = error.response ? JSON.stringify(error.response.data) : error.message;
             throw new Error(`Facebook API Error: ${errorMsg}`);
         }
+    },
+
+    debugToken: async (token, overrideAppId, overrideAppSecret) => {
+        const config = configService.getConfig();
+        const appId = (overrideAppId || config.fbAppId)?.trim();
+        const appSecret = (overrideAppSecret || config.fbAppSecret)?.trim();
+
+        if (!appId || !appSecret) {
+            throw new Error('Chưa cấu hình App ID hoặc App Secret.');
+        }
+
+        // App Access Token is required to debug any token
+        const appAccessToken = `${appId}|${appSecret}`;
+
+        try {
+            const response = await axios.get('https://graph.facebook.com/v25.0/debug_token', {
+                params: {
+                    input_token: token,
+                    access_token: appAccessToken
+                }
+            });
+            return response.data.data; // token info (is_valid, expires_at, scopes, etc.)
+        } catch (error) {
+            const errorDetail = error.response?.data?.error?.message || error.message;
+            throw new Error(`Facebook Debug Token Error: ${errorDetail}`);
+        }
     }
 };

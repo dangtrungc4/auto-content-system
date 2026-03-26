@@ -75,6 +75,17 @@ app.get('/api/facebook/pages', async (req, res) => {
     }
 });
 
+app.get('/api/facebook/debug-token', async (req, res) => {
+    const { token, appId, appSecret } = req.query;
+    if (!token) return res.status(400).json({ success: false, error: 'token is required' });
+    try {
+        const info = await fbService.debugToken(token, appId, appSecret);
+        res.json({ success: true, info });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 app.get('/api/posts/history', async (req, res) => {
     try {
         const { page = 1, limit = 9, search = '', status = '' } = req.query;

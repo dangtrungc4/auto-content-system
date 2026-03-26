@@ -14,6 +14,7 @@ model Config {
   googleClientEmail String?
   googlePrivateKey  String? @db.Text
   fbAppId           String?
+  fbAppSecret       String?
   fbUserToken       String? @db.Text
   fbPageToken       String? @db.Text
   fbPageId          String?

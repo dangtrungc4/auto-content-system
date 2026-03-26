@@ -9,6 +9,7 @@ let currentConfig = {
     fbUserToken: '',
     fbPageToken: '',
     fbPageId: '',
+    fbAppSecret: '',
     unsplashKey: '',
     cronSchedule: '* * * * *'
 };

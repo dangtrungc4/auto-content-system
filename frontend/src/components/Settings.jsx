@@ -11,6 +11,7 @@ export default function Settings() {
     fbUserToken: '',
     fbPageToken: '',
     fbPageId: '',
+    fbAppSecret: '',
     unsplashKey: ''
   });
 
@@ -18,6 +19,8 @@ export default function Settings() {
   const [loading, setLoading] = useState(false);
   const [fetchingPages, setFetchingPages] = useState(false);
   const [pages, setPages] = useState([]);
+  const [tokenInfo, setTokenInfo] = useState({ user: null, page: null });
+  const [checkingToken, setCheckingToken] = useState(false);
 
   useEffect(() => {
     const loadConf = async () => {
@@ -34,6 +37,10 @@ export default function Settings() {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Clear token info if related fields change
+    if (['fbUserToken', 'fbPageToken'].includes(e.target.name)) {
+      setTokenInfo(prev => ({ ...prev, [e.target.name === 'fbUserToken' ? 'user' : 'page']: null }));
+    }
   };
 
   const handleFetchPages = async () => {
@@ -57,6 +64,25 @@ export default function Settings() {
     } finally {
       setFetchingPages(false);
       setTimeout(() => setStatus({ type: '', msg: '' }), 6000);
+    }
+  };
+
+  const handleCheckToken = async (tokenType) => {
+    const token = tokenType === 'user' ? formData.fbUserToken : formData.fbPageToken;
+    if (!token) return;
+    setCheckingToken(true);
+    try {
+      const res = await fetch(`/api/facebook/debug-token?token=${encodeURIComponent(token)}&appId=${formData.fbAppId}&appSecret=${formData.fbAppSecret}`);
+      const data = await res.json();
+      if (data.success) {
+        setTokenInfo(prev => ({ ...prev, [tokenType]: data.info }));
+      } else {
+        setStatus({ type: 'error', msg: `Lỗi kiểm tra token: ${data.error}` });
+      }
+    } catch {
+      setStatus({ type: 'error', msg: 'Lỗi kết nối khi kiểm tra token.' });
+    } finally {
+      setCheckingToken(false);
     }
   };
 
@@ -95,6 +121,65 @@ export default function Settings() {
       setLoading(false);
       setTimeout(() => setStatus({ type: '', msg: '' }), 5000);
     }
+  };
+
+  const renderTokenStatus = (info) => {
+    if (!info) return null;
+    const expiresAt = info.expires_at ? new Date(info.expires_at * 1000) : null;
+    const dataAccessExpiresAt = info.data_access_expires_at ? new Date(info.data_access_expires_at * 1000) : null;
+    const now = new Date();
+    const isExpired = expiresAt && expiresAt < now;
+    const daysLeft = expiresAt ? Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24)) : null;
+
+    return (
+      <div className="mt-2 p-3 bg-slate-900/80 border border-slate-700/50 rounded-lg text-xs space-y-2 animate-in fade-in zoom-in-95">
+        <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+          <span className="text-slate-400 font-medium">✨ {info.type === 'PAGE' ? 'Page Access Token' : 'User Access Token'}</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${info.is_valid && !isExpired ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+            {info.is_valid && !isExpired ? 'Active' : 'Expired/Invalid'}
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
+          <div className="flex flex-col">
+            <span className="text-slate-500 scale-90 origin-left uppercase font-bold tracking-tight">Hết hạn Token:</span>
+            <span className={`font-mono ${daysLeft !== null && daysLeft < 7 ? 'text-amber-400' : 'text-slate-200'}`}>
+              {info.expires_at === 0 ? 'Vĩnh viễn (Never)' : 
+               isExpired ? `Hết hạn ${expiresAt.toLocaleDateString('vi-VN')}` :
+               `${expiresAt.toLocaleDateString('vi-VN')} (${daysLeft} ngày)`}
+            </span>
+          </div>
+          
+          {dataAccessExpiresAt && (
+            <div className="flex flex-col text-right">
+              <span className="text-slate-500 scale-90 origin-right uppercase font-bold tracking-tight">Quyền truy cập dữ liệu:</span>
+              <span className="text-slate-200 font-mono">
+                {dataAccessExpiresAt.toLocaleDateString('vi-VN')}
+              </span>
+            </div>
+          )}
+
+          <div className="flex flex-col">
+            <span className="text-slate-500 scale-90 origin-left uppercase font-bold tracking-tight">Ứng dụng (App ID):</span>
+            <span className="text-slate-300 truncate">{info.application || info.app_id}</span>
+          </div>
+
+          <div className="flex flex-col text-right">
+            <span className="text-slate-500 scale-90 origin-right uppercase font-bold tracking-tight">ID Người dùng:</span>
+            <span className="text-slate-300 font-mono">{info.user_id}</span>
+          </div>
+        </div>
+
+        <div>
+          <span className="text-slate-500 scale-90 origin-left uppercase font-bold tracking-tight block mb-1">Quyền hạn (Scopes):</span>
+          <div className="flex flex-wrap gap-1">
+            {info.scopes?.map(s => (
+              <span key={s} className="px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded border border-slate-700/50 hover:border-slate-600 transition-colors">{s}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const inputCls = 'w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono';
@@ -152,9 +237,15 @@ export default function Settings() {
           <h3 className="text-lg font-semibold text-blue-500 mb-4 border-b border-slate-700 pb-2">Facebook API</h3>
           <div className="space-y-4">
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">App ID</label>
-              <input type="text" name="fbAppId" value={formData.fbAppId} onChange={handleChange} className={inputCls} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">App ID</label>
+                <input type="text" name="fbAppId" value={formData.fbAppId} onChange={handleChange} className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">App Secret</label>
+                <input type="password" name="fbAppSecret" value={formData.fbAppSecret} onChange={handleChange} className={inputCls} />
+              </div>
             </div>
 
             {/* Step 1: Nhập User Token rồi bấm Fetch Pages */}
@@ -173,6 +264,16 @@ export default function Settings() {
                 />
                 <button
                   type="button"
+                  onClick={() => handleCheckToken('user')}
+                  disabled={checkingToken || !formData.fbUserToken}
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium border border-slate-700 transition-all flex items-center gap-2"
+                  title="Kiểm tra thời hạn token"
+                >
+                  {checkingToken ? <RefreshCw size={14} className="animate-spin" /> : <AlertCircle size={14} />}
+                  Check
+                </button>
+                <button
+                  type="button"
                   onClick={handleFetchPages}
                   disabled={fetchingPages}
                   className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-all whitespace-nowrap disabled:opacity-50 border border-slate-600"
@@ -181,6 +282,7 @@ export default function Settings() {
                   Fetch Pages
                 </button>
               </div>
+              {renderTokenStatus(tokenInfo.user)}
             </div>
 
             {/* Step 2: Dropdown chọn Page (chỉ hiện sau khi bấm Fetch) */}
@@ -212,7 +314,19 @@ export default function Settings() {
                 <label className="block text-sm font-medium text-slate-300 mb-1">
                   Page Access Token <span className="text-slate-500 font-normal text-xs">(tự động điền)</span>
                 </label>
-                <input type="password" value={formData.fbPageToken} readOnly className={readonlyCls} placeholder="Chọn page ở trên..." />
+                <div className="flex gap-2">
+                  <input type="password" value={formData.fbPageToken} readOnly className={`${readonlyCls} flex-1`} placeholder="Chọn page ở trên..." />
+                  <button
+                    type="button"
+                    onClick={() => handleCheckToken('page')}
+                    disabled={checkingToken || !formData.fbPageToken}
+                    className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium border border-slate-700 transition-all flex items-center gap-2"
+                  >
+                    {checkingToken ? <RefreshCw size={14} className="animate-spin" /> : <AlertCircle size={14} />}
+                    Check
+                  </button>
+                </div>
+                {renderTokenStatus(tokenInfo.page)}
               </div>
             </div>
 
