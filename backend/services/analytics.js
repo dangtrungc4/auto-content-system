@@ -36,6 +36,29 @@ async function fetchFbEngagement(fbPostId) {
 }
 
 /**
+ * Fetch Page stats (followers_count, fan_count)
+ */
+async function fetchPageStats() {
+    const config = configService.getConfig();
+    if (!config.fbPageToken || !config.fbPageId) return { followersCount: 0, fanCount: 0 };
+    try {
+        const res = await axios.get(`https://graph.facebook.com/v25.0/${config.fbPageId}`, {
+            params: {
+                fields: 'followers_count,fan_count',
+                access_token: config.fbPageToken
+            }
+        });
+        return {
+            followersCount: res.data.followers_count || 0,
+            fanCount: res.data.fan_count || 0
+        };
+    } catch (error) {
+        console.error(`FB Page Stats Fetch Error:`, error.response?.data || error.message);
+        return { followersCount: 0, fanCount: 0 };
+    }
+}
+
+/**
  * Sync engagement for all posts (run periodically)
  */
 async function syncEngagement() {
@@ -61,6 +84,8 @@ async function getSummaryStats() {
         _sum: { likes: true, comments: true, shares: true }
     });
 
+    const pageStats = await fetchPageStats();
+
     return {
         total,
         success,
@@ -68,6 +93,7 @@ async function getSummaryStats() {
         totalLikes: agg._sum.likes || 0,
         totalComments: agg._sum.comments || 0,
         totalShares: agg._sum.shares || 0,
+        ...pageStats
     };
 }
 

@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, ThumbsUp, MessageSquare, Share2, CheckCircle,
-  XCircle, BarChart2, RefreshCw, Award, Calendar, ToggleLeft, ToggleRight
+  XCircle, BarChart2, RefreshCw, Award, Calendar, ToggleLeft, ToggleRight, Users
 } from 'lucide-react';
 
 const PERIODS = [
@@ -127,7 +127,7 @@ export default function Analytics() {
     );
   }
 
-  const s = summary || { total: 0, success: 0, failed: 0, totalLikes: 0, totalComments: 0, totalShares: 0 };
+  const s = summary || { total: 0, success: 0, failed: 0, totalLikes: 0, totalComments: 0, totalShares: 0, followersCount: 0, fanCount: 0 };
   const successRate = s.total > 0 ? Math.round((s.success / s.total) * 100) : 0;
 
   return (
@@ -174,6 +174,7 @@ export default function Analytics() {
         <StatCard icon={ThumbsUp} label="Tổng Likes" value={s.totalLikes} color="bg-violet-600" />
         <StatCard icon={MessageSquare} label="Tổng Comments" value={s.totalComments} color="bg-amber-600" />
         <StatCard icon={Share2} label="Tổng Shares" value={s.totalShares} color="bg-cyan-600" />
+        <StatCard icon={Users} label="Người theo dõi" value={s.followersCount} color="bg-pink-600" sub={`${s.fanCount.toLocaleString()} lượt thích trang`} />
       </div>
 
       {/* Chart Section */}
