@@ -168,12 +168,12 @@ app.post('/api/analytics/auto-sync/stop', (req, res) => {
 
 // Parse textarea content (No save)
 app.post('/api/parse', async (req, res) => {
-    const { text, imageUrl } = req.body;
+    const { text, imageUrl, priority } = req.body;
     if (!text || typeof text !== 'string' || !text.trim()) {
         return res.status(400).json({ success: false, error: 'Trường "text" không được để trống.' });
     }
     try {
-        const data = await parseService.parseOnly(text.trim(), imageUrl);
+        const data = await parseService.parseOnly(text.trim(), imageUrl, priority);
         res.json({ success: true, data });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });

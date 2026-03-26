@@ -1,6 +1,8 @@
-const imageService = require('./images');
-const { getSheetsAPI } = require('./googleSheets');
 const configService = require('./config');
+const googleSheets = require('./googleSheets');
+
+const GOLDEN_SLOTS = ["07:30", "11:30", "19:30", "22:00"];
+const MAX_POSTS_PER_DAY = GOLDEN_SLOTS.length;
 
 /**
  * Parse raw textarea content vào các field theo quy tắc:
@@ -39,19 +41,60 @@ function parseText(text) {
 }
 
 /**
- * Tạo giờ đăng ngẫu nhiên trong khoảng 12:00–13:00 hoặc 18:00–19:00
- * Format: "HH:MM"
+ * Tính toán ngày và giờ đăng bài thông minh
+ * @param {number} index Thứ tự bài viết (0-based)
+ * @param {Date} startDate Ngày bắt đầu
+ * @param {string} priority Độ ưu tiên (NORMAL/HIGH)
+ * @returns {{ date: string, time: string }}
  */
-function randomPostTime() {
-    const slots = [
-        { h: 12, mMin: 0, mMax: 59 },
-        { h: 18, mMin: 0, mMax: 59 }
-    ];
-    const slot = slots[Math.floor(Math.random() * slots.length)];
-    const minute = Math.floor(Math.random() * (slot.mMax - slot.mMin + 1)) + slot.mMin;
-    const hh = String(slot.h).padStart(2, '0');
-    const mm = String(minute).padStart(2, '0');
-    return `${hh}:${mm}`;
+function calculateSmartSchedule(index, startDate = new Date(), priority = 'NORMAL') {
+    let dayCount = Math.floor(index / MAX_POSTS_PER_DAY);
+    let slotIndex = index % MAX_POSTS_PER_DAY;
+
+    let targetDate = new Date(startDate);
+    targetDate.setHours(0, 0, 0, 0);
+
+    // Tìm ngày thứ n không phải Chủ Nhật
+    let addedDays = 0;
+    while (addedDays < dayCount) {
+        targetDate.setDate(targetDate.getDate() + 1);
+        if (targetDate.getDay() !== 0) { // 0 là Chủ Nhật
+            addedDays++;
+        }
+    }
+    
+    // Nếu ngày tính toán rơi đúng vào Chủ Nhật (trường hợp dayCount=0), đẩy sang Thứ 2
+    if (targetDate.getDay() === 0) {
+        targetDate.setDate(targetDate.getDate() + 1);
+    }
+
+    // Ưu tiên slot 19:30 nếu là bài quan trọng (HIGH)
+    let timeStr = GOLDEN_SLOTS[slotIndex];
+    if (priority === 'HIGH') {
+        timeStr = "19:30";
+    }
+
+    let [hours, minutes] = timeStr.split(':').map(Number);
+
+    // Random ±10 phút
+    const offset = Math.floor(Math.random() * 21) - 10; // -10 to +10
+    minutes += offset;
+
+    // Xử lý overflow/underflow phút
+    const totalMinutes = hours * 60 + minutes;
+    let finalHours = Math.floor(totalMinutes / 60);
+    let finalMinutes = totalMinutes % 60;
+    
+    // Đảm bảo không âm
+    if (finalMinutes < 0) {
+        finalMinutes += 60;
+        finalHours -= 1;
+    }
+
+    const dateFormatted = targetDate.toLocaleDateString('vi-VN');
+    const timeFormatted = `${String(finalHours).padStart(2, '0')}:${String(finalMinutes).padStart(2, '0')}`;
+
+    return { date: dateFormatted, time: timeFormatted };
 }
 
 /**
@@ -59,17 +102,15 @@ function randomPostTime() {
  *
  * @param {string} text  Raw textarea input
  * @param {string} providedImageUrl (Optional) cụ thể cho link ảnh
+ * @param {string} priority (Optional) độ ưu tiên
  * @returns {object}     Parsed data
  */
-async function parseOnly(text, providedImageUrl = '') {
+async function parseOnly(text, providedImageUrl = '', priority = 'NORMAL') {
     const { caption, content, hashtag } = parseText(text);
 
-    // Ngày hôm nay theo vi-VN
-    const now = new Date();
-    const date = now.toLocaleDateString('vi-VN'); // e.g. "25/3/2026"
-
-    // Giờ ngẫu nhiên
-    const time = randomPostTime();
+    // Lấy số lượng bài hiện có để tính index
+    const postCount = await googleSheets.getPostCount();
+    const { date, time } = calculateSmartSchedule(postCount, new Date(), priority);
 
     // Chủ đề để trống
     const topic = '';
@@ -101,7 +142,7 @@ async function saveToSheet(data) {
         throw new Error('Chưa cấu hình Google Sheet ID.');
     }
 
-    const sheets = await getSheetsAPI();
+    const sheets = await googleSheets.getSheetsAPI();
     await sheets.spreadsheets.values.append({
         spreadsheetId: config.sheetId,
         range: 'A:H',
@@ -115,4 +156,4 @@ async function saveToSheet(data) {
     return { success: true };
 }
 
-module.exports = { parseText, parseOnly, saveToSheet };
+module.exports = { parseText, parseOnly, saveToSheet, calculateSmartSchedule };

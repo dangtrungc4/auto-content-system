@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Wand2, Image, Quote, AlignLeft, Hash, Calendar, Clock, AlertCircle, Save, Check, CheckCircle } from 'lucide-react';
+import { FileText, Wand2, Image, Quote, AlignLeft, Hash, Calendar, Clock, AlertCircle, Save, Check, CheckCircle, Zap } from 'lucide-react';
 
 export default function Parse() {
   const [text, setText] = useState('');
@@ -10,6 +10,7 @@ export default function Parse() {
   const [isSaved, setIsSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(null);
+  const [priority, setPriority] = useState('NORMAL');
 
   // default text for hint
   const placeholder = `[ SG • 2026 . 03 . 25 ]\n\n"ĐÊM CÓ ĐOM ĐÓM"\n\nNgày xưa, đêm không tối hẳn.\nCứ vào hồi nhá nhem, lũ đom đóm bắt đầu thắp đèn...\n\n#gocnhocuamia #miake`;
@@ -27,7 +28,7 @@ export default function Parse() {
       const res = await fetch('/api/parse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, imageUrl })
+        body: JSON.stringify({ text, imageUrl, priority })
       });
       const data = await res.json();
       if (data.success) {
@@ -123,6 +124,25 @@ export default function Parse() {
             <span>{success}</span>
           </div>
         )}
+
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center gap-2">
+            <Zap size={16} className={priority === 'HIGH' ? 'text-yellow-400' : 'text-slate-500'} />
+            <span className="text-sm font-medium text-slate-400">Ưu tiên (High Priority)</span>
+          </div>
+          <button
+            onClick={() => setPriority(priority === 'HIGH' ? 'NORMAL' : 'HIGH')}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+              priority === 'HIGH' ? 'bg-yellow-500' : 'bg-slate-700'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                priority === 'HIGH' ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
 
         <button 
           onClick={handleParse}

@@ -115,5 +115,19 @@ module.exports = {
                 values: [[statusStr]]
             }
         });
+    },
+    getPostCount: async () => {
+        const config = configService.getConfig();
+        if (!config.sheetId) return 0;
+
+        const sheets = await getSheetsAPI();
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: config.sheetId,
+            range: 'A:A' // Chỉ cần đếm số dòng ở cột A
+        });
+
+        const rows = response.data.values;
+        // Trừ đi 1 dòng header nếu có dữ liệu
+        return rows ? Math.max(0, rows.length - 1) : 0;
     }
 };
