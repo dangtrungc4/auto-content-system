@@ -1,5 +1,6 @@
 const configService = require('./config');
 const googleSheets = require('./googleSheets');
+const imageService = require('./images');
 
 const GOLDEN_SLOTS = ["07:30", "11:30", "19:30", "22:00"];
 const MAX_POSTS_PER_DAY = GOLDEN_SLOTS.length;
