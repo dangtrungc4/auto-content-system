@@ -9,7 +9,7 @@ datasource db {
 
 model Config {
   id                Int     @id @default(1)
-  cronSchedule      String? @default("*/5 * * * *")
+  cronSchedule      String? @default("* * * * *")
   sheetId           String?
   googleClientEmail String?
   googlePrivateKey  String? @db.Text

@@ -3,7 +3,7 @@ import { Save, AlertCircle, CheckCircle2, RefreshCw, Download } from 'lucide-rea
 
 export default function Settings() {
   const [formData, setFormData] = useState({
-    cronSchedule: '*/5 * * * *',
+    cronSchedule: '* * * * *',
     sheetId: '',
     googleClientEmail: '',
     googlePrivateKey: '',
@@ -122,9 +122,9 @@ export default function Settings() {
               value={formData.cronSchedule}
               onChange={handleChange}
               className={inputCls}
-              placeholder="*/5 * * * *"
+              placeholder="* * * * *"
             />
-            <p className="mt-1.5 text-xs text-slate-500">How often the engine runs. Default */5 * * * * (every 5 mins).</p>
+            <p className="mt-1.5 text-xs text-slate-500">How often the engine runs. Default * * * * * (every 1 min).</p>
           </div>
         </section>
 

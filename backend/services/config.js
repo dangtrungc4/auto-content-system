@@ -10,7 +10,7 @@ let currentConfig = {
     fbPageToken: '',
     fbPageId: '',
     unsplashKey: '',
-    cronSchedule: '*/5 * * * *'
+    cronSchedule: '* * * * *'
 };
 
 async function loadConfig() {
