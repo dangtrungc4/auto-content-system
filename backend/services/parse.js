@@ -36,7 +36,7 @@ function parseText(text) {
     const contentLines = hashtag
         ? lines.slice(2, lines.length - 1)
         : lines.slice(2);
-    const content = contentLines.join('\n');
+    const content = contentLines.join('\n\n');
 
     return { caption, content, hashtag };
 }

@@ -54,6 +54,7 @@ export default function Analytics() {
   const [syncing, setSyncing] = useState(false);
   const [autoSyncRunning, setAutoSyncRunning] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
 
   const fetchAll = useCallback(async (p = period) => {
     setLoading(true);
@@ -66,6 +67,7 @@ export default function Analytics() {
       if (sumRes.success) setSummary(sumRes);
       if (chartRes.success) setChartData(chartRes.data);
       if (topRes.success) setTopPosts(topRes.posts);
+      setLastUpdated(new Date());
     } catch (err) {
       console.error('Analytics fetch error:', err);
     } finally {
@@ -80,6 +82,19 @@ export default function Analytics() {
       .then(r => r.json())
       .then(res => { if (res.success) setAutoSyncRunning(res.isRunning); });
   }, [period]);
+
+  // Polling logic: fetch data every 30 seconds if autoSync is running
+  useEffect(() => {
+    let interval = null;
+    if (autoSyncRunning) {
+      interval = setInterval(() => {
+        fetchAll(period);
+      }, 300000); // 5 minutes (300,000ms)
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [autoSyncRunning, period, fetchAll]);
 
   const toggleAutoSync = async () => {
     setToggling(true);
@@ -123,6 +138,9 @@ export default function Analytics() {
           <p className="text-slate-400 text-sm mt-1">Thống kê hiệu suất đăng bài</p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="text-right mr-3 text-xs text-slate-500 hidden sm:block">
+            Cập nhật lúc: {lastUpdated.toLocaleTimeString('vi-VN')}
+          </div>
           <button
             onClick={toggleAutoSync}
             disabled={toggling}
