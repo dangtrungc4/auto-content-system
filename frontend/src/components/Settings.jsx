@@ -326,10 +326,9 @@ export default function Settings() {
                     Check
                   </button>
                 </div>
-                {renderTokenStatus(tokenInfo.page)}
               </div>
             </div>
-
+            {renderTokenStatus(tokenInfo.page)}
           </div>
         </section>
 
