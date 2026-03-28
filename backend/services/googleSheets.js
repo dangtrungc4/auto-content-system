@@ -77,26 +77,29 @@ module.exports = {
             if (formatDate(dateStr) !== currentDateStr) continue;
             // Kiểm tra trạng thái "Chưa đăng"
             if (status.trim().toLowerCase() === 'chưa đăng') {
-                // Kiểm tra thời gian (Đơn giản hóa: So sánh giờ và phút, hoặc bỏ qua kiểm tra ngày nếu chỉ cần chạy theo giờ)
-                // Ở đây ta có thể đơn giản lấy giờ ra so sánh:
+                const fbCaptionString = caption ? caption + '\n\n' + content + '\n\n' + hashtag : hashtag;
+                
+                // Trình tự lưu trữ bài mới: dùng caption (dòng 1) làm title cho DB
+                const titleFromCaption = caption.split('\n')[1] || topic || 'Untitled from Sheet';
+
+                const postData = {
+                    rowIndex: i + 1,
+                    topic,
+                    content,
+                    caption,
+                    hashtag,
+                    imageUrl,
+                    fbCaption: fbCaptionString,
+                    title: titleFromCaption
+                };
+
                 if (timeStr) {
                     const [h, m] = timeStr.split(':').map(Number);
                     if (currentHour > h || (currentHour === h && currentMinute >= m)) {
-                        pending.push({
-                            rowIndex: i + 1, // 1-based index cho Google Sheet API
-                            topic,
-                            caption: caption ? caption + '\n\n' + content + '\n\n' + hashtag : hashtag,
-                            imageUrl
-                        });
+                        pending.push(postData);
                     }
                 } else {
-                    // Nếu không có giờ, coi như post ngay
-                    pending.push({
-                        rowIndex: i + 1,
-                        topic,
-                        caption: caption ? caption + '\n\n' + content + '\n\n' + hashtag : hashtag,
-                        imageUrl
-                    });
+                    pending.push(postData);
                 }
             }
         }
@@ -129,5 +132,20 @@ module.exports = {
         const rows = response.data.values;
         // Trừ đi 1 dòng header nếu có dữ liệu
         return rows ? Math.max(0, rows.length - 1) : 0;
+    },
+    updatePostRow: async (rowIndex, data) => {
+        const config = configService.getConfig();
+        const sheets = await getSheetsAPI();
+        
+        // Data format: [date, time, topic, content, caption, imageUrl, hashtag, status]
+        const { date, time, topic, content, caption, imageUrl, hashtag, status } = data;
+        const values = [[date, time, topic, content, caption, imageUrl, hashtag, status]];
+
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: config.sheetId,
+            range: `A${rowIndex}:H${rowIndex}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values }
+        });
     }
 };

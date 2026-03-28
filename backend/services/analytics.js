@@ -62,10 +62,14 @@ async function fetchPageStats() {
  * Sync engagement for all posts (run periodically)
  */
 async function syncEngagement() {
-    const posts = await prisma.postRecord.findMany({ select: { id: true, fbPostId: true } });
+    const posts = await prisma.post.findMany({ 
+        where: { status: 'PUBLISHED' },
+        select: { id: true, fbPostId: true } 
+    });
     for (const post of posts) {
+        if (!post.fbPostId) continue;
         const engagement = await fetchFbEngagement(post.fbPostId);
-        await prisma.postRecord.update({
+        await prisma.post.update({
             where: { id: post.id },
             data: engagement
         });
@@ -76,11 +80,12 @@ async function syncEngagement() {
  * Get summary stats
  */
 async function getSummaryStats() {
-    const total = await prisma.postRecord.count();
-    const success = await prisma.postRecord.count({ where: { status: 'success' } });
-    const failed = total - success;
+    const total = await prisma.post.count({ where: { status: 'PUBLISHED' } });
+    const published = total;
+    const failed = await prisma.post.count({ where: { status: 'FAILED' } });
 
-    const agg = await prisma.postRecord.aggregate({
+    const agg = await prisma.post.aggregate({
+        where: { status: 'PUBLISHED' },
         _sum: { likes: true, comments: true, shares: true }
     });
 
@@ -88,7 +93,7 @@ async function getSummaryStats() {
 
     return {
         total,
-        success,
+        published,
         failed,
         totalLikes: agg._sum.likes || 0,
         totalComments: agg._sum.comments || 0,
@@ -118,7 +123,8 @@ async function getPostsByPeriod(period = 'day', limit = 30) {
             SUM(likes) as likes,
             SUM(comments) as comments,
             SUM(shares) as shares
-        FROM PostRecord
+        FROM posts
+        WHERE status = 'PUBLISHED'
         GROUP BY period
         ORDER BY MIN(createdAt) DESC
         LIMIT ${limit}
@@ -137,22 +143,71 @@ async function getPostsByPeriod(period = 'day', limit = 30) {
 /**
  * Get top posts by engagement (likes + comments + shares)
  */
-async function getTopPosts(limit = 5) {
-    const posts = await prisma.postRecord.findMany({
-        orderBy: [{ likes: 'desc' }],
-        take: limit,
-        select: {
-            id: true,
-            fbPostId: true,
-            caption: true,
-            imageUrl: true,
-            likes: true,
-            comments: true,
-            shares: true,
-            createdAt: true
+async function getTopPosts(page = 1, limit = 5) {
+    const skip = (page - 1) * limit;
+    const [posts, total] = await Promise.all([
+        prisma.post.findMany({
+            where: { status: 'PUBLISHED' },
+            orderBy: [{ likes: 'desc' }],
+            skip,
+            take: limit,
+            select: {
+                id: true,
+                fbPostId: true,
+                caption: true,
+                imageUrl: true,
+                likes: true,
+                comments: true,
+                shares: true,
+                createdAt: true
+            }
+        }),
+        prisma.post.count({ where: { status: 'PUBLISHED' } })
+    ]);
+
+    return {
+        posts,
+        pagination: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
         }
-    });
-    return posts;
+    };
+}
+
+
+/**
+ * Get pending posts (Scheduled)
+ */
+async function getPendingPosts(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const [posts, total] = await Promise.all([
+        prisma.post.findMany({
+            where: { status: 'SCHEDULED' },
+            orderBy: [{ scheduledAt: 'asc' }],
+            skip,
+            take: limit,
+            select: {
+                id: true,
+                title: true,
+                caption: true,
+                imageUrl: true,
+                scheduledAt: true
+            }
+        }),
+        prisma.post.count({ where: { status: 'SCHEDULED' } })
+    ]);
+
+    return {
+        posts,
+        pagination: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        }
+    };
 }
 
 let autoSyncTask = null;
@@ -199,6 +254,7 @@ module.exports = {
     getSummaryStats, 
     getPostsByPeriod, 
     getTopPosts, 
+    getPendingPosts,
     syncEngagement, 
     startAutoSync,
     stopAutoSync,

@@ -80,31 +80,71 @@ async function worker() {
         if (!post) continue;
 
         try {
-            addLog('info', `Processing post from row ${post.rowIndex}...`);
+            addLog('info', `Processing post: ${post.title || post.caption || 'No Title'}...`);
             const config = configService.getConfig();
             
-            // Fetch image if missing
+            // Tự động tìm ảnh nếu trống
             let imageUrl = post.imageUrl;
-            if (!imageUrl && config.unsplashKey && post.topic) {
-                imageUrl = await images.searchImage(post.topic);
-                addLog('info', `Fetched image for topic "${post.topic}"`);
+            if (!imageUrl && config.unsplashKey) {
+                // Ưu tiên Topic, nếu không có Topic dùng dòng đầu của Caption (giống parse.js)
+                const searchQuery = post.title || post.caption.split('\n')[1] || post.topic;
+                if (searchQuery) {
+                    imageUrl = await images.searchImage(searchQuery);
+                    if (imageUrl) addLog('info', `Fetched image for query: "${searchQuery.split('\n')[0]}"`);
+                }
             }
 
+            // Ghép nội dung theo format mới: [ Địa điểm • Ngày ] → "Tên bài" → Nội dung → #hashtag
+            const locationPart = post.location;
+            const titlePart = post.title ? `${post.title}` : '';
+            
+            let finalCaption = locationPart;
+            if (titlePart) finalCaption += '\n' + titlePart;
+            if (post.content) finalCaption += '\n\n' + post.content;
+            if (post.hashtag) finalCaption += '\n\n' + post.hashtag;
+
+
             // Post to FB
-            const fbResult = await facebook.postContent(post.caption, imageUrl);
+            const fbResult = await facebook.postContent(finalCaption, imageUrl);
+
+
             addLog('success', `Posted to Facebook successfully: Post ID ${fbResult.id}`);
 
-            // Save to DB
-            await configService.prisma.postRecord.create({
-                data: {
-                    fbPostId: fbResult.id,
-                    caption: post.caption,
-                    imageUrl: imageUrl
-                }
-            }).catch(e => console.error('Error saving post record:', e.message));
+            // Update DB record
+            if (post.id) {
+                await configService.prisma.post.update({
+                    where: { id: post.id },
+                    data: {
+                        fbPostId: fbResult.id,
+                        status: 'PUBLISHED',
+                        publishedAt: new Date(),
+                        imageUrl: imageUrl // Store the used image URL
+                    }
+                });
+            } else {
+                // For posts that came from Sheets but not yet in DB
+                await configService.prisma.post.create({
+                    data: {
+                        fbPostId: fbResult.id,
+                        title: post.title,
+                        content: post.content,
+                        caption: post.caption,
+                        topic: post.topic,
+                        hashtag: post.hashtag,
+                        imageUrl: imageUrl,
+                        status: 'PUBLISHED',
+                        publishedAt: new Date()
 
-            // Update Sheet
-            await googleSheets.updatePostStatus(post.rowIndex, 'Đã đăng');
+                    }
+                }).catch(e => console.error('Error saving post record:', e.message));
+            }
+
+
+
+            // Update Sheet if it came from a sheet row
+            if (post.rowIndex) {
+                await googleSheets.updatePostStatus(post.rowIndex, 'Đã đăng');
+            }
             stats.posted++;
             sessionPostCount++;
             lastPostTime = new Date();
@@ -116,10 +156,19 @@ async function worker() {
                 await sleep(delay);
             }
         } catch (err) {
-            addLog('error', `Failed to post row ${post.rowIndex}: ${err.message}`);
-            await googleSheets.updatePostStatus(post.rowIndex, 'Lỗi');
+            addLog('error', `Failed to post ${post.id || 'row ' + post.rowIndex}: ${err.message}`);
+            if (post.id) {
+                await configService.prisma.post.update({
+                    where: { id: post.id },
+                    data: { status: 'FAILED' }
+                });
+            }
+            if (post.rowIndex) {
+                await googleSheets.updatePostStatus(post.rowIndex, 'Lỗi');
+            }
             stats.failed++;
         }
+
     }
 
     addLog('info', 'Queue is empty. Worker stopping...');
@@ -134,24 +183,49 @@ async function processPosts() {
     
     isJobRunning = true;
     try {
-        addLog('info', 'Syncing pending posts from Google Sheets...');
+        addLog('info', 'Syncing pending posts...');
         const config = configService.getConfig();
         
         if (!config.sheetId || !config.fbPageToken || !config.googleClientEmail) {
             throw new Error('Thiếu cấu hình (Sheet ID, FB Token hoặc Google Credentials).');
         }
 
-        const pendingPosts = await googleSheets.getPendingPosts();
+        // 1. Get from Database (New)
+        const dbPendingPosts = await configService.prisma.post.findMany({
+            where: {
+                status: 'SCHEDULED',
+                scheduledAt: { lte: new Date() }
+            }
+        });
+
+        // 2. Get from Google Sheets (Existing)
+        const sheetPendingPosts = await googleSheets.getPendingPosts();
         
         // Add unique posts to queue
         let addedCount = 0;
-        for (const post of pendingPosts) {
-            const alreadyInQueue = pendingQueue.some(p => p.rowIndex === post.rowIndex);
+        const currentCaptions = new Set(pendingQueue.map(p => p.caption || p.title));
+        
+        // Add DB posts (Ưu tiên Database hơn)
+        for (const post of dbPendingPosts) {
+            const alreadyInQueue = pendingQueue.some(p => p.id === post.id);
             if (!alreadyInQueue) {
+                pendingQueue.push(post);
+                currentCaptions.add(post.caption || post.title);
+                addedCount++;
+            }
+        }
+
+        // Add Sheet posts (Chỉ thêm nếu chưa có trong Database đang chờ đăng)
+        for (const post of sheetPendingPosts) {
+            const isDuplicate = currentCaptions.has(post.caption || post.title);
+            const alreadyInQueue = pendingQueue.some(p => p.rowIndex === post.rowIndex);
+            
+            if (!alreadyInQueue && !isDuplicate) {
                 pendingQueue.push(post);
                 addedCount++;
             }
         }
+
 
         stats.pending = pendingQueue.length;
         if (addedCount > 0) {
@@ -166,6 +240,7 @@ async function processPosts() {
         }
         
         return `Queue updated. ${addedCount} new, ${pendingQueue.length} total.`;
+
     } catch (err) {
         addLog('error', `System error during sync: ${err.message}`);
         throw err;

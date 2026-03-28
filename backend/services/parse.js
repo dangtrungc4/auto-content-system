@@ -135,7 +135,7 @@ async function parseOnly(text, providedImageUrl = '', priority = 'NORMAL') {
  * 
  * @param {object} data  Dữ liệu từ parseOnly
  */
-async function saveToSheet(data) {
+async function saveToSheet(data, skipDb = false) {
     const { date, time, topic, content, caption, imageUrl, hashtag, status } = data;
 
     const config = configService.getConfig();
@@ -144,7 +144,7 @@ async function saveToSheet(data) {
     }
 
     const sheets = await googleSheets.getSheetsAPI();
-    await sheets.spreadsheets.values.append({
+    const appendRes = await sheets.spreadsheets.values.append({
         spreadsheetId: config.sheetId,
         range: 'A:H',
         valueInputOption: 'USER_ENTERED',
@@ -154,7 +154,38 @@ async function saveToSheet(data) {
         }
     });
 
-    return { success: true };
+    const updatedRange = appendRes.data.updates.updatedRange; // e.g. "Sheet1!A11:H11"
+    console.log('--- Google Sheets Append Updated Range:', updatedRange);
+    const rowIndexMatch = updatedRange.match(/A(\d+)/); // Match the first row number after 'A'
+    const rowIndex = rowIndexMatch ? parseInt(rowIndexMatch[1]) : null;
+
+    // Đồng thời lưu vào Database để hiển thị trong phần Quản lý bài viết (nếu không skip)
+    if (!skipDb) {
+        try {
+            const [d, m, y] = date.split('/').map(Number);
+            const [h, min] = time.split(':').map(Number);
+            const scheduledAt = new Date(y, m - 1, d, h, min);
+
+            await configService.prisma.post.create({
+                data: {
+                    title: caption.split('\n')[0] || topic || 'Untitled',
+                    content,
+                    caption,
+                    topic,
+                    hashtag,
+                    imageUrl,
+                    status: 'SCHEDULED',
+                    scheduledAt,
+                    sheetRow: rowIndex
+                }
+            });
+        } catch (dbError) {
+            console.error('Lỗi khi lưu vào Database từ Parse:', dbError.message);
+        }
+    }
+
+    return { success: true, rowIndex };
 }
+
 
 module.exports = { parseText, parseOnly, saveToSheet, calculateSmartSchedule };

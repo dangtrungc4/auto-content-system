@@ -8,6 +8,8 @@ const sheetService = require('./services/googleSheets');
 const fbService = require('./services/facebook');
 const analyticsService = require('./services/analytics');
 const parseService = require('./services/parse');
+const images = require('./services/images');
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -86,24 +88,35 @@ app.get('/api/facebook/debug-token', async (req, res) => {
     }
 });
 
-app.get('/api/posts/history', async (req, res) => {
+// Post Management Routes
+app.get('/api/posts', async (req, res) => {
     try {
-        const { page = 1, limit = 9, search = '', status = '' } = req.query;
+        const { page = 1, limit = 10, search = '', status = '', authorId } = req.query;
         const pageNum = parseInt(page);
         const limitNum = parseInt(limit);
 
         const where = {};
         if (search) {
-            where.caption = { contains: search };
+            where.OR = [
+                { title: { contains: search } },
+                { content: { contains: search } },
+                { caption: { contains: search } },
+                { topic: { contains: search } },
+                { hashtag: { contains: search } },
+                { location: { contains: search } }
+            ];
         }
+
         if (status) {
             where.status = status;
         }
+        if (authorId) {
+            where.authorId = parseInt(authorId);
+        }
 
-        const countQuery = Object.keys(where).length > 0 ? { where } : undefined;
-        const total = await configService.prisma.postRecord.count(countQuery);
+        const total = await configService.prisma.post.count({ where });
 
-        const history = await configService.prisma.postRecord.findMany({
+        const posts = await configService.prisma.post.findMany({
             where,
             orderBy: { createdAt: 'desc' },
             skip: (pageNum - 1) * limitNum,
@@ -112,7 +125,7 @@ app.get('/api/posts/history', async (req, res) => {
 
         res.json({ 
             success: true, 
-            history, 
+            posts, 
             pagination: {
                 total,
                 page: pageNum,
@@ -121,9 +134,132 @@ app.get('/api/posts/history', async (req, res) => {
             }
         });
     } catch (err) {
+        console.error('API Error [GET /api/posts]:', err);
         res.status(500).json({ success: false, error: err.message });
     }
 });
+
+app.get('/api/posts/history', async (req, res) => {
+    // Redirect to the new generic posts API for backward compatibility
+    req.url = '/api/posts';
+    return app._router.handle(req, res);
+});
+
+app.post('/api/posts', async (req, res) => {
+    try {
+        const postData = { ...req.body };
+        // Clean up data for Prisma
+        delete postData.id;
+        if (postData.scheduledAt) postData.scheduledAt = new Date(postData.scheduledAt);
+        if (postData.publishedAt) postData.publishedAt = new Date(postData.publishedAt);
+        if (postData.authorId) postData.authorId = parseInt(postData.authorId);
+        if (postData.location) postData.location = postData.location.trim();
+
+        // Ensure caption follows standard if missing: [Location] \n [Title]
+        if (!postData.caption && (postData.location || postData.title)) {
+            postData.caption = `${postData.location || ''}\n${postData.title || ''}`.trim();
+        }
+
+        const post = await configService.prisma.post.create({
+            data: {
+                ...postData,
+                status: postData.status || 'DRAFT'
+            }
+        });
+
+
+        res.json({ success: true, post });
+    } catch (err) {
+        console.error('API Error [POST /api/posts]:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/posts/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) return res.status(400).json({ success: false, error: 'Invalid ID' });
+        
+        const post = await configService.prisma.post.findUnique({
+            where: { id }
+        });
+        if (!post) return res.status(404).json({ success: false, error: 'Post not found' });
+        res.json({ success: true, post });
+    } catch (err) {
+        console.error('API Error [GET /api/posts/:id]:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.put('/api/posts/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) return res.status(400).json({ success: false, error: 'Invalid ID' });
+        
+        const postData = { ...req.body };
+        // Clean up data for Prisma
+        delete postData.id;
+        delete postData.sheetRow; // Don't allow manual update of sheetRow
+        
+        if (postData.scheduledAt) postData.scheduledAt = new Date(postData.scheduledAt);
+        if (postData.publishedAt) postData.publishedAt = new Date(postData.publishedAt);
+        if (postData.authorId) postData.authorId = parseInt(postData.authorId);
+        if (postData.location) postData.location = postData.location.trim();
+        if (postData.likes) postData.likes = parseInt(postData.likes);
+        if (postData.comments) postData.comments = parseInt(postData.comments);
+        if (postData.shares) postData.shares = parseInt(postData.shares);
+
+        // Update caption if needed
+        if (!postData.caption && (postData.location || postData.title)) {
+            postData.caption = `${postData.location || ''}\n${postData.title || ''}`.trim();
+        }
+
+        const post = await configService.prisma.post.update({
+            where: { id },
+            data: postData
+        });
+
+        // Sync to Google Sheet
+        if (post.status === 'SCHEDULED' || post.status === 'PUBLISHED') {
+            try {
+                const sheetData = {
+                    date: post.scheduledAt ? post.scheduledAt.toLocaleDateString('vi-VN') : new Date().toLocaleDateString('vi-VN'),
+                    time: post.scheduledAt ? post.scheduledAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '00:00',
+                    topic: post.topic || post.location || '',
+                    content: post.content || '',
+                    caption: post.caption || '',
+                    imageUrl: post.imageUrl || '',
+                    hashtag: post.hashtag || '',
+                    status: post.status === 'PUBLISHED' ? 'Đã đăng' : 'Chưa đăng'
+                };
+
+                if (post.sheetRow) {
+                    await sheetService.updatePostRow(post.sheetRow, sheetData);
+                }
+            } catch (sheetErr) {
+                console.error('Error syncing to sheet on update:', sheetErr.message);
+            }
+        }
+
+        res.json({ success: true, post });
+    } catch (err) {
+        console.error('API Error [PUT /api/posts/:id]:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+
+app.delete('/api/posts/:id', async (req, res) => {
+    try {
+        await configService.prisma.post.delete({
+            where: { id: parseInt(req.params.id) }
+        });
+        res.json({ success: true, message: 'Post deleted successfully' });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 
 // Analytics routes
 app.get('/api/analytics/summary', async (req, res) => {
@@ -147,8 +283,21 @@ app.get('/api/analytics/chart', async (req, res) => {
 
 app.get('/api/analytics/top-posts', async (req, res) => {
     try {
-        const posts = await analyticsService.getTopPosts(5);
-        res.json({ success: true, posts });
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 5;
+        const data = await analyticsService.getTopPosts(page, limit);
+        res.json({ success: true, ...data });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/analytics/pending-posts', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const data = await analyticsService.getPendingPosts(page, limit);
+        res.json({ success: true, ...data });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
@@ -177,7 +326,21 @@ app.post('/api/analytics/auto-sync/stop', (req, res) => {
     res.json({ success: true, isRunning: false });
 });
 
+// Image search endpoint
+app.get('/api/images/search', async (req, res) => {
+    const { query } = req.query;
+    if (!query) return res.status(400).json({ success: false, error: 'Query is required' });
+    try {
+        const imageUrl = await images.searchImage(query);
+        res.json({ success: true, imageUrl });
+    } catch (err) {
+
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // Parse textarea content (No save)
+
 app.post('/api/parse', async (req, res) => {
     const { text, imageUrl, priority } = req.body;
     if (!text || typeof text !== 'string' || !text.trim()) {

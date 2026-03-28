@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, ThumbsUp, MessageSquare, Share2, CheckCircle,
-  XCircle, BarChart2, RefreshCw, Award, Calendar, ToggleLeft, ToggleRight, Users
+  XCircle, BarChart2, RefreshCw, Award, Calendar, ToggleLeft, ToggleRight, Users, Clock
 } from 'lucide-react';
 
 const PERIODS = [
@@ -49,6 +49,14 @@ export default function Analytics() {
   const [summary, setSummary] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [topPosts, setTopPosts] = useState([]);
+  const [topPage, setTopPage] = useState(1);
+  const [hasMoreTop, setHasMoreTop] = useState(true);
+  const [loadingTop, setLoadingTop] = useState(false);
+  
+  const [pendingPosts, setPendingPosts] = useState([]);
+  const [pendingPage, setPendingPage] = useState(1);
+  const [hasMorePending, setHasMorePending] = useState(true);
+  const [loadingPending, setLoadingPending] = useState(false);
   const [period, setPeriod] = useState('day');
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -64,11 +72,54 @@ export default function Analytics() {
     } catch (err) { console.error('Summary fetch error:', err); }
   };
 
-  const fetchTopPosts = async () => {
+  const fetchTopPosts = async (page = 1) => {
+    if (loadingTop) return;
+    setLoadingTop(true);
     try {
-      const res = await fetch('/api/analytics/top-posts').then(r => r.json());
-      if (res.success) setTopPosts(res.posts);
-    } catch (err) { console.error('Top posts fetch error:', err); }
+      const res = await fetch(`/api/analytics/top-posts?page=${page}&limit=5`).then(r => r.json());
+      if (res.success) {
+        if (page === 1) {
+          setTopPosts(res.posts);
+        } else {
+          setTopPosts(prev => [...prev, ...res.posts]);
+        }
+        setTopPage(page);
+        if (page >= res.pagination.totalPages || res.posts.length === 0) {
+          setHasMoreTop(false);
+        } else {
+          setHasMoreTop(true);
+        }
+      }
+    } catch (err) { 
+      console.error('Top posts fetch error:', err); 
+    } finally {
+      setLoadingTop(false);
+    }
+  };
+
+  const fetchPendingPosts = async (page = 1) => {
+    if (loadingPending) return;
+    setLoadingPending(true);
+    try {
+      const res = await fetch(`/api/analytics/pending-posts?page=${page}&limit=5`).then(r => r.json());
+      if (res.success) {
+        if (page === 1) {
+          setPendingPosts(res.posts);
+        } else {
+          setPendingPosts(prev => [...prev, ...res.posts]);
+        }
+        setPendingPage(page);
+        if (page >= res.pagination.totalPages || res.posts.length === 0) {
+          setHasMorePending(false);
+        } else {
+          setHasMorePending(true);
+        }
+      }
+    } catch (err) { 
+      console.error('Pending posts fetch error:', err); 
+    } finally {
+      setLoadingPending(false);
+    }
   };
 
   const fetchChartData = async (p = period) => {
@@ -86,7 +137,7 @@ export default function Analytics() {
   const fetchAll = useCallback(async (p = period) => {
     setLoading(true);
     try {
-      await Promise.all([fetchSummary(), fetchChartData(p), fetchTopPosts()]);
+      await Promise.all([fetchSummary(), fetchChartData(p), fetchTopPosts(1), fetchPendingPosts(1)]);
       setLastUpdated(new Date());
     } finally {
       setLoading(false);
@@ -189,16 +240,81 @@ export default function Analytics() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
-        <StatCard icon={Users} label="Người theo dõi" value={s.followersCount} color="bg-pink-600" sub={`${s.fanCount.toLocaleString()} lượt thích trang`} />
-        <StatCard icon={BarChart2} label="Tổng bài đăng" value={s.total} color="bg-blue-600" />
-        {/* <StatCard icon={CheckCircle} label="Thành công" value={s.success} color="bg-emerald-600"
-          sub={`${successRate}% success rate`} /> */}
-        {/* <StatCard icon={XCircle} label="Thất bại" value={s.failed} color="bg-red-600" /> */}
-        <StatCard icon={ThumbsUp} label="Tổng Likes" value={s.totalLikes} color="bg-violet-600" />
-        <StatCard icon={MessageSquare} label="Tổng Comments" value={s.totalComments} color="bg-amber-600" />
-        <StatCard icon={Share2} label="Tổng Shares" value={s.totalShares} color="bg-cyan-600" />
+      {/* Top Section: Summary Cards & Pending Posts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Summary Cards (2 per row) */}
+        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 content-start">
+          <StatCard icon={Users} label="Người theo dõi" value={s.followersCount} color="bg-pink-600" sub={`${s.fanCount.toLocaleString()} lượt thích trang`} />
+          {/* <StatCard icon={CheckCircle} label="Thành công" value={s.success} color="bg-emerald-600"
+            sub={`${successRate}% success rate`} /> */}
+          {/* <StatCard icon={XCircle} label="Thất bại" value={s.failed} color="bg-red-600" /> */}
+          <StatCard icon={ThumbsUp} label="Tổng Likes" value={s.totalLikes} color="bg-violet-600" />
+          <StatCard icon={MessageSquare} label="Tổng Comments" value={s.totalComments} color="bg-amber-600" />
+          <StatCard icon={Share2} label="Tổng Shares" value={s.totalShares} color="bg-cyan-600" />
+        </div>
+
+        {/* Right Column: Tổng bài đăng & Pending Posts */}
+        <div className="lg:col-span-1 flex flex-col gap-4">
+          <StatCard icon={BarChart2} label="Tổng bài đăng" value={s.total} color="bg-blue-600" />
+          
+          <div className="bg-slate-800/70 border border-slate-700 rounded-2xl p-6 flex-1 max-h-[420px] overflow-hidden flex flex-col">
+            <div className="flex items-center gap-2 text-slate-200 font-semibold mb-5 flex-shrink-0">
+              <Clock size={20} className="text-blue-400" />
+              Bài đang chờ đăng
+            </div>
+
+            <div 
+              className="overflow-y-auto pr-2 custom-scrollbar flex-1"
+              onScroll={(e) => {
+                const { scrollTop, scrollHeight, clientHeight } = e.target;
+                if (scrollHeight - scrollTop <= clientHeight + 10 && hasMorePending && !loadingPending) {
+                  fetchPendingPosts(pendingPage + 1);
+                }
+              }}
+            >
+              {pendingPosts.length === 0 && !loadingPending ? (
+                <p className="text-slate-500 text-sm text-center py-8">Không có bài chờ đăng</p>
+              ) : (
+                <div className="space-y-3">
+                  {pendingPosts.map((post) => (
+                    <div key={post.id}
+                      className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-xl border border-slate-700/50 hover:border-slate-600 transition-all"
+                    >
+                      {post.imageUrl ? (
+                        <img src={post.imageUrl} alt="" className="w-14 h-14 object-cover rounded-lg flex-shrink-0" />
+                      ) : (
+                        <div className="w-14 h-14 bg-slate-800 rounded-lg flex-shrink-0 flex items-center justify-center text-slate-600">
+                          <Clock size={20} />
+                        </div>
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                        <p className="text-slate-300 text-sm font-medium line-clamp-1">
+                          {post.title || 'No title'}
+                        </p>
+                        <p className="text-slate-500 text-xs mt-1 line-clamp-1">
+                          {post.caption || 'No caption'}
+                        </p>
+                        <p className="text-blue-400 text-xs mt-2 font-medium">
+                          Lịch đăng: {new Date(post.scheduledAt).toLocaleString('vi-VN', {
+                            day: '2-digit', month: '2-digit', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {loadingPending && (
+                <div className="flex justify-center py-4">
+                  <RefreshCw size={16} className="animate-spin text-slate-500" />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Chart Section */}
@@ -270,58 +386,74 @@ export default function Analytics() {
         )}
       </div>
 
-      {/* Top Posts */}
-      <div className="bg-slate-800/70 border border-slate-700 rounded-2xl p-6">
-        <div className="flex items-center gap-2 text-slate-200 font-semibold mb-5">
+      {/* Bottom Section: Top Posts */}
+      <div className="bg-slate-800/70 border border-slate-700 rounded-2xl p-6 h-[500px] flex flex-col">
+        <div className="flex items-center gap-2 text-slate-200 font-semibold mb-5 flex-shrink-0">
           <Award size={20} className="text-amber-400" />
           Top bài hiệu quả (Likes cao nhất)
         </div>
 
-        {topPosts.length === 0 ? (
-          <p className="text-slate-500 text-sm text-center py-8">Chưa có dữ liệu</p>
-        ) : (
-          <div className="space-y-3">
-            {topPosts.map((post, idx) => (
-              <div key={post.id}
-                className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-xl border border-slate-700/50 hover:border-slate-600 transition-all"
-              >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                  idx === 0 ? 'bg-amber-500 text-white' :
-                  idx === 1 ? 'bg-slate-400 text-slate-900' :
-                  idx === 2 ? 'bg-amber-700 text-white' :
-                  'bg-slate-700 text-slate-300'
-                }`}>
-                  {idx + 1}
-                </div>
+        <div 
+          className="overflow-y-auto pr-2 custom-scrollbar flex-1"
+          onScroll={(e) => {
+            const { scrollTop, scrollHeight, clientHeight } = e.target;
+            if (scrollHeight - scrollTop <= clientHeight + 10 && hasMoreTop && !loadingTop) {
+              fetchTopPosts(topPage + 1);
+            }
+          }}
+        >
+          {topPosts.length === 0 && !loadingTop ? (
+            <p className="text-slate-500 text-sm text-center py-8">Chưa có dữ liệu</p>
+          ) : (
+            <div className="space-y-3">
+              {topPosts.map((post, idx) => (
+                <div key={post.id}
+                  className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-xl border border-slate-700/50 hover:border-slate-600 transition-all"
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                    idx === 0 ? 'bg-amber-500 text-white' :
+                    idx === 1 ? 'bg-slate-400 text-slate-900' :
+                    idx === 2 ? 'bg-amber-700 text-white' :
+                    'bg-slate-700 text-slate-300'
+                  }`}>
+                    {idx + 1}
+                  </div>
 
-                {post.imageUrl && (
-                  <img src={post.imageUrl} alt="" className="w-14 h-14 object-cover rounded-lg flex-shrink-0" />
-                )}
+                  {post.imageUrl && (
+                    <img src={post.imageUrl} alt="" className="w-14 h-14 object-cover rounded-lg flex-shrink-0" />
+                  )}
 
-                <div className="flex-1 min-w-0">
-                  <p className="text-slate-300 text-sm line-clamp-2 leading-relaxed">
-                    {post.caption || 'No caption'}
-                  </p>
-                  <p className="text-slate-600 text-xs mt-1">
-                    {new Date(post.createdAt).toLocaleDateString('vi-VN')}
-                  </p>
-                </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-slate-300 text-sm line-clamp-2 leading-relaxed">
+                      {post.caption || 'No caption'}
+                    </p>
+                    <p className="text-slate-600 text-xs mt-1">
+                      {new Date(post.createdAt).toLocaleDateString('vi-VN')}
+                    </p>
+                  </div>
 
-                <div className="flex gap-3 flex-shrink-0 text-sm">
-                  <span className="flex items-center gap-1 text-violet-400 font-semibold">
-                    <ThumbsUp size={13} /> {post.likes}
-                  </span>
-                  <span className="flex items-center gap-1 text-amber-400 font-semibold">
-                    <MessageSquare size={13} /> {post.comments}
-                  </span>
-                  <span className="flex items-center gap-1 text-cyan-400 font-semibold">
-                    <Share2 size={13} /> {post.shares}
-                  </span>
+                  <div className="flex gap-3 flex-shrink-0 text-sm">
+                    <span className="flex items-center gap-1 text-violet-400 font-semibold">
+                      <ThumbsUp size={13} /> {post.likes}
+                    </span>
+                    <span className="flex items-center gap-1 text-amber-400 font-semibold">
+                      <MessageSquare size={13} /> {post.comments}
+                    </span>
+                    <span className="flex items-center gap-1 text-cyan-400 font-semibold">
+                      <Share2 size={13} /> {post.shares}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+
+          {loadingTop && (
+            <div className="flex justify-center py-4">
+              <RefreshCw size={16} className="animate-spin text-slate-500" />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

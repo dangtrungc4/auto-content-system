@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
-import History from './components/History';
+import PostManagement from './components/PostManagement';
 import Analytics from './components/Analytics';
 import Parse from './components/Parse';
 import { Bot, LayoutDashboard, Settings as SettingsIcon, History as HistoryIcon, BarChart2, FilePen, Menu } from 'lucide-react';
@@ -73,14 +73,6 @@ export default function App() {
             <div className="shrink-0 flex items-center justify-center"><LayoutDashboard size={20} /></div>
             <span className={`transition-all duration-300 ${isSidebarOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>Dashboard</span>
           </button>
-  
-          <button 
-            onClick={() => setActiveTab('parse')}
-            className={`flex items-center rounded-xl font-medium transition-all ${isSidebarOpen ? 'px-4 gap-3' : 'px-0 justify-center'} py-3 ${activeTab === 'parse' ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'} overflow-hidden whitespace-nowrap`}
-          >
-            <div className="shrink-0 flex items-center justify-center"><FilePen size={20} /></div>
-            <span className={`transition-all duration-300 ${isSidebarOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>Add New Post</span>
-          </button>
 
           <button 
             onClick={() => setActiveTab('history')}
@@ -89,6 +81,14 @@ export default function App() {
             <div className="shrink-0 flex items-center justify-center"><HistoryIcon size={20} /></div>
             <span className={`transition-all duration-300 ${isSidebarOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>Manage Posts</span>
           </button>
+
+          {/* <button 
+            onClick={() => setActiveTab('parse')}
+            className={`flex items-center rounded-xl font-medium transition-all ${isSidebarOpen ? 'px-4 gap-3' : 'px-0 justify-center'} py-3 ${activeTab === 'parse' ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'} overflow-hidden whitespace-nowrap`}
+          >
+            <div className="shrink-0 flex items-center justify-center"><FilePen size={20} /></div>
+            <span className={`transition-all duration-300 ${isSidebarOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>Add New Post Excel</span>
+          </button> */}
           
           <button 
             onClick={() => setActiveTab('settings')}
@@ -116,7 +116,7 @@ export default function App() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             {activeTab === 'dashboard' && <Dashboard systemState={systemState} refreshData={fetchData} />}
             {activeTab === 'parse' && <Parse />}
-            {activeTab === 'history' && <History />}
+            {activeTab === 'history' && <PostManagement />}
             {activeTab === 'analytics' && <Analytics />}
             {activeTab === 'settings' && <Settings />}
           </div>

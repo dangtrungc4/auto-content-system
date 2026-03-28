@@ -21,15 +21,30 @@ model Config {
   unsplashKey       String?
 }
 
-model PostRecord {
-  id        Int      @id @default(autoincrement())
-  fbPostId  String   @unique
-  caption   String?  @db.Text
-  imageUrl  String?  @db.Text
-  likes     Int      @default(0)
-  comments  Int      @default(0)
-  shares    Int      @default(0)
-  status    String?  @default("success")
-  createdAt DateTime @default(now())
+model Post {
+  id          Int       @id @default(autoincrement())
+  title       String?   @db.Text
+  content     String?   @db.Text
+  caption     String?   @db.Text
+  imageUrl    String?   @db.Text
+  status      String?   @default("DRAFT") // DRAFT, SCHEDULED, PUBLISHED, FAILED
+  fbPostId    String?   @unique
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  likes       Int       @default(0)
+  comments    Int       @default(0)
+  shares      Int       @default(0)
+  authorId    Int?
+  topic       String?   @db.Text
+  hashtag     String?   @db.Text
+  location    String?   @db.Text
+  sheetRow    Int?      @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+
+
+  @@map("posts")
 }
+
 
