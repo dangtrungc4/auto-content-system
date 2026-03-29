@@ -320,7 +320,7 @@ export default function PostManagement() {
                       <div className="space-y-1">
                         <div className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
                           <Calendar size={12} className="text-slate-500"/>
-                          {post.scheduledAt ? new Date(post.scheduledAt).toLocaleDateString() : 'Chưa đặt'}
+                          {post.scheduledAt ? new Date(post.scheduledAt).toLocaleDateString('vi-VN') : 'Chưa đặt'}
                         </div>
                         <div className="text-[10px] text-slate-500 flex items-center gap-1.5">
                           <Clock size={10} className="text-slate-600"/>
