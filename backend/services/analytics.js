@@ -118,7 +118,7 @@ async function getPostsByPeriod(period = 'day', limit = 30) {
 
     const rows = await prisma.$queryRaw`
         SELECT 
-            DATE_FORMAT(createdAt, ${dateFormat}) as period,
+            DATE_FORMAT(publishedAt, ${dateFormat}) as period,
             COUNT(*) as count,
             SUM(likes) as likes,
             SUM(comments) as comments,
@@ -126,7 +126,7 @@ async function getPostsByPeriod(period = 'day', limit = 30) {
         FROM posts
         WHERE status = 'PUBLISHED'
         GROUP BY period
-        ORDER BY MIN(createdAt) DESC
+        ORDER BY MIN(publishedAt) DESC
         LIMIT ${limit}
     `;
 
