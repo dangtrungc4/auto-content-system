@@ -38,6 +38,7 @@ export default function PostManagement() {
   const [editingPost, setEditingPost] = useState(null);
   const [previewPost, setPreviewPost] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isImageLightboxOpen, setIsImageLightboxOpen] = useState(false);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState(null);
@@ -200,18 +201,23 @@ export default function PostManagement() {
     }
   };
 
-  const handleFindImage = async () => {
+  const handleFindImage = async (forceRefresh = false) => {
     // Ưu tiên dùng Tiêu đề, sau đó mới dùng Địa điểm hoặc Chủ đề để tìm ảnh
-    const query = editingPost.title || editingPost.location || editingPost.topic;
+    const baseQuery = editingPost.title || editingPost.location || editingPost.topic;
     
-    if (!query || query.trim() === '') {
+    if (!baseQuery || baseQuery.trim() === '') {
       alert('Vui lòng nhập "Tiêu đề", "Địa điểm" hoặc "Chủ đề" để hệ thống lấy từ khóa tìm ảnh.');
       return;
     }
+
+    // Thêm "Vietnam" để ưu tiên ảnh phù hợp nội dung Việt Nam
+    const query = `${baseQuery} Vietnam`;
+    // Khi refresh, thêm timestamp ngẫu nhiên để tránh cache / lấy ảnh khác
+    const cacheBust = forceRefresh ? `&_t=${Date.now()}` : '';
     
     setIsSaving(true);
     try {
-      const res = await fetch(`/api/images/search?query=${encodeURIComponent(query)}`);
+      const res = await fetch(`/api/images/search?query=${encodeURIComponent(query)}${cacheBust}`);
       if (!res.ok) {
         const errorText = await res.text();
         throw new Error(`Lỗi server (${res.status}): ${errorText.substring(0, 100)}`);
@@ -219,9 +225,9 @@ export default function PostManagement() {
       
       const data = await res.json();
       if (data.success && data.imageUrl) {
-        setEditingPost({ ...editingPost, imageUrl: data.imageUrl });
+        setEditingPost(prev => ({ ...prev, imageUrl: data.imageUrl }));
       } else {
-        alert('Không tìm thấy ảnh từ Unsplash phù hợp với từ khóa: "' + query + '". Bạn vui lòng thử dùng Tiêu đề ngắn gọn hơn (tiếng Anh sẽ cho kết quả tốt hơn).');
+        alert('Không tìm thấy ảnh phù hợp với từ khóa: "' + baseQuery + '". Bạn vui lòng thử dùng Tiêu đề ngắn gọn hơn.');
       }
     } catch (err) {
       console.error('Find image error:', err);
@@ -246,6 +252,25 @@ export default function PostManagement() {
     const minutes = String(date.getMinutes()).padStart(2, '0');
     
     return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  // ISO / scheduledAt → dd/mm/yyyy
+  const formatDateDisplay = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  // dd/mm/yyyy → yyyy-mm-dd (cho internal value)
+  const parseDateInput = (ddmmyyyy) => {
+    const match = ddmmyyyy.replace(/[^0-9/]/g, '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!match) return null;
+    const [, d, m, y] = match;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
   };
 
   const getStatusBadge = (status) => {
@@ -674,81 +699,224 @@ export default function PostManagement() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
-                        Trạng thái
-                      </label>
-                      <select
-                        value={editingPost.status || "DRAFT"}
-                        onChange={(e) =>
-                          setEditingPost({
-                            ...editingPost,
-                            status: e.target.value,
-                          })
-                        }
-                        className="w-full bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all appearance-none outline-none"
-                      >
-                        <option value="DRAFT">Bản nháp</option>
-                        <option value="SCHEDULED">Chờ đăng (Lập lịch)</option>
-                        <option value="PUBLISHED">Đã đăng</option>
-                        <option value="FAILED">Lỗi</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
-                        Ngày đăng bài
-                      </label>
-                      <input
-                        type="datetime-local"
-                        value={formatDateTimeLocal(editingPost.scheduledAt)}
-                        onChange={(e) =>
-                          setEditingPost({
-                            ...editingPost,
-                            scheduledAt: e.target.value,
-                          })
-                        }
-                        className="w-full bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all"
-                      />
-                    </div>
-                  </div>
-
+                  {/* Trạng thái */}
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
-                      Link ảnh
+                      Trạng thái
+                    </label>
+                    <select
+                      value={editingPost.status || "DRAFT"}
+                      onChange={(e) =>
+                        setEditingPost({ ...editingPost, status: e.target.value })
+                      }
+                      className="w-full bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all appearance-none outline-none"
+                    >
+                      <option value="DRAFT">Bản nháp</option>
+                      <option value="SCHEDULED">Chờ đăng (Lập lịch)</option>
+                      <option value="PUBLISHED">Đã đăng</option>
+                      <option value="FAILED">Lỗi</option>
+                    </select>
+                  </div>
+
+                  {/* Ngày đăng bài — Enhanced Date/Time Picker */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1 flex items-center gap-1.5">
+                      <Calendar size={12} /> Ngày đăng bài
                     </label>
 
-                    <div className="flex gap-3">
-                      <input
-                        type="text"
-                        value={editingPost.imageUrl || ""}
-                        onChange={(e) =>
-                          setEditingPost({
-                            ...editingPost,
-                            imageUrl: e.target.value,
-                          })
-                        }
-                        placeholder="URL ảnh (Unsplash, FB, etc.)..."
-                        className="flex-1 bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all"
-                      />
+                    {/* Quick-pick date buttons */}
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: '📅 Hôm nay', offset: 0 },
+                        { label: '📅 Ngày mai', offset: 1 },
+                        { label: '📅 +3 ngày', offset: 3 },
+                        { label: '📅 +7 ngày', offset: 7 },
+                      ].map(({ label, offset }) => (
+                        <button
+                          key={offset}
+                          type="button"
+                          onClick={() => {
+                            const d = new Date();
+                            d.setDate(d.getDate() + offset);
+                            // Giữ nguyên giờ hiện tại của editingPost nếu có, ngược lại giữ giờ hiện tại
+                            const existing = editingPost.scheduledAt ? new Date(editingPost.scheduledAt) : new Date();
+                            d.setHours(existing.getHours(), existing.getMinutes(), 0, 0);
+                            setEditingPost({ ...editingPost, scheduledAt: d.toISOString() });
+                          }}
+                          className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-blue-600 hover:border-blue-500 hover:text-white transition-all"
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Date + Time inputs side by side */}
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <input
+                          type="date"
+                          value={editingPost.scheduledAt ? formatDateTimeLocal(editingPost.scheduledAt).split('T')[0] : ''}
+                          onChange={(e) => {
+                            const newDate = e.target.value;
+                            if (!newDate) return;
+                            setEditingPost(prev => {
+                              const timePart = prev.scheduledAt
+                                ? formatDateTimeLocal(prev.scheduledAt).split('T')[1]
+                                : '08:00';
+                              return { ...prev, scheduledAt: `${newDate}T${timePart}` };
+                            });
+                          }}
+                          style={{ colorScheme: 'dark' }}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-slate-100 focus:outline-none focus:border-blue-500 transition-all text-sm"
+                        />
+                      </div>
+                      {/* Custom 24h time picker */}
+                      <div className="flex gap-1 items-center">
+                        <select
+                          value={editingPost.scheduledAt ? formatDateTimeLocal(editingPost.scheduledAt).split('T')[1]?.split(':')[0] ?? '08' : '08'}
+                          onChange={(e) => {
+                            const newHour = e.target.value;
+                            setEditingPost(prev => {
+                              const dt = formatDateTimeLocal(prev.scheduledAt || new Date().toISOString());
+                              const datePart = dt.split('T')[0];
+                              const minPart = dt.split('T')[1]?.split(':')[1] ?? '00';
+                              return { ...prev, scheduledAt: `${datePart}T${newHour}:${minPart}` };
+                            });
+                          }}
+                          style={{ colorScheme: 'dark' }}
+                          className="w-16 bg-slate-900 border border-slate-700 rounded-xl px-2 py-2.5 text-slate-100 focus:outline-none focus:border-blue-500 transition-all text-sm text-center appearance-none"
+                        >
+                          {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                        <span className="text-slate-400 font-bold text-lg">:</span>
+                        <select
+                          value={editingPost.scheduledAt ? formatDateTimeLocal(editingPost.scheduledAt).split('T')[1]?.split(':')[1] ?? '00' : '00'}
+                          onChange={(e) => {
+                            const newMin = e.target.value;
+                            setEditingPost(prev => {
+                              const dt = formatDateTimeLocal(prev.scheduledAt || new Date().toISOString());
+                              const datePart = dt.split('T')[0];
+                              const hourPart = dt.split('T')[1]?.split(':')[0] ?? '08';
+                              return { ...prev, scheduledAt: `${datePart}T${hourPart}:${newMin}` };
+                            });
+                          }}
+                          style={{ colorScheme: 'dark' }}
+                          className="w-16 bg-slate-900 border border-slate-700 rounded-xl px-2 py-2.5 text-slate-100 focus:outline-none focus:border-blue-500 transition-all text-sm text-center appearance-none"
+                        >
+                          {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Quick-pick time buttons */}
+                    <div className="flex gap-2 flex-wrap">
+                      {['07:00', '08:00', '12:00', '17:00', '20:00', '21:00'].map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => {
+                            const datePart = editingPost.scheduledAt
+                              ? formatDateTimeLocal(editingPost.scheduledAt).split('T')[0]
+                              : formatDateTimeLocal(new Date().toISOString()).split('T')[0];
+                            setEditingPost({ ...editingPost, scheduledAt: `${datePart}T${t}` });
+                          }}
+                          className="px-3 py-1 text-xs font-mono font-semibold rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:bg-violet-600 hover:border-violet-500 hover:text-white transition-all"
+                        >
+                          ⏰ {t}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Hiển thị ngày đã chọn ở dạng đọc được */}
+                    {editingPost.scheduledAt && (
+                      <p className="text-xs text-slate-500 pl-1">
+                        ✅ Đã chọn:{' '}
+                        <span className="text-blue-400 font-semibold font-mono">
+                          {formatDateDisplay(editingPost.scheduledAt)}
+                          {' — '}
+                          {formatDateTimeLocal(editingPost.scheduledAt).split('T')[1] || '--:--'}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Link ảnh — Enhanced với Refresh + Lightbox */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1 flex items-center gap-1.5">
+                      <ImageIcon size={12} /> Link ảnh
+                    </label>
+
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={editingPost.imageUrl || ""}
+                          onChange={(e) =>
+                            setEditingPost({ ...editingPost, imageUrl: e.target.value })
+                          }
+                          placeholder="URL ảnh (Unsplash, FB, etc.)..."
+                          className="w-full bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 pr-10 text-slate-100 focus:outline-none focus:border-blue-500 transition-all text-sm"
+                        />
+                        {editingPost.imageUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingPost({ ...editingPost, imageUrl: '' })}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-red-400 transition-colors p-0.5 rounded-full hover:bg-red-400/10"
+                            title="Xóa link ảnh"
+                          >
+                            <X size={15} />
+                          </button>
+                        )}
+                      </div>
+                      {/* Nút Tìm ảnh (lần đầu) */}
                       <button
-                        onClick={handleFindImage}
-                        className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-3 rounded-xl border border-slate-700 transition-all flex items-center gap-2"
-                        title="Tìm ảnh tự động"
+                        onClick={() => handleFindImage(false)}
+                        disabled={isSaving}
+                        className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-3 py-2 rounded-xl border border-blue-500 transition-all flex items-center gap-1.5 shrink-0"
+                        title="Tìm ảnh tự động (ưu tiên ảnh Việt Nam)"
                       >
-                        <Search size={18} />
-                        <span className="text-xs font-medium">Tìm ảnh</span>
+                        <Search size={15} />
+                        <span className="text-xs font-semibold">Tìm ảnh</span>
                       </button>
+                      {/* Nút Refresh — chỉ hiện khi đã có ảnh */}
                       {editingPost.imageUrl && (
-                        <div className="w-12 h-12 rounded-xl border border-slate-700 overflow-hidden shrink-0">
-                          <img
-                            src={editingPost.imageUrl}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
+                        <button
+                          onClick={() => handleFindImage(true)}
+                          disabled={isSaving}
+                          className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white px-3 py-2 rounded-xl border border-amber-500 transition-all flex items-center gap-1.5 shrink-0"
+                          title="Làm mới ảnh — tìm ảnh khác"
+                        >
+                          <RefreshCw size={15} className={isSaving ? 'animate-spin' : ''} />
+                          <span className="text-xs font-semibold">Đổi ảnh</span>
+                        </button>
                       )}
                     </div>
+
+                    {/* Thumbnail preview — click để xem lớn */}
+                    {editingPost.imageUrl && (
+                      <div
+                        className="relative group cursor-pointer w-full h-36 rounded-xl border border-slate-700 overflow-hidden bg-slate-800 shadow-inner"
+                        onClick={() => setIsImageLightboxOpen(true)}
+                        title="Click để xem ảnh lớn"
+                      >
+                        <img
+                          src={editingPost.imageUrl}
+                          alt="Preview"
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        {/* Overlay icon */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="bg-white/20 backdrop-blur-sm rounded-full p-3">
+                            <Eye size={22} className="text-white" />
+                          </div>
+                          <span className="absolute bottom-2 right-3 text-xs text-white/80 font-medium">Nhấn để phóng to</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -777,6 +945,30 @@ export default function PostManagement() {
           </div>
         </div>
       )}
+
+      {/* Image Lightbox Modal */}
+      {isImageLightboxOpen && editingPost?.imageUrl && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+          onClick={() => setIsImageLightboxOpen(false)}
+        >
+          <div className="relative max-w-4xl w-full" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setIsImageLightboxOpen(false)}
+              className="absolute -top-10 right-0 text-white/70 hover:text-white p-2 rounded-full hover:bg-white/10 transition-all"
+            >
+              <X size={24} />
+            </button>
+            <img
+              src={editingPost.imageUrl}
+              alt="Xem ảnh lớn"
+              className="w-full h-auto max-h-[85vh] object-contain rounded-2xl shadow-2xl"
+            />
+            <p className="text-center text-white/50 text-xs mt-3">Nhấn ra ngoài hoặc ✕ để đóng</p>
+          </div>
+        </div>
+      )}
+
       {/* Delete Modal */}
       {isDeleteModalOpen && postToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
