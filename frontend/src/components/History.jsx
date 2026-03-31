@@ -148,6 +148,20 @@ export default function History() {
                     <p className="text-sm text-slate-300 line-clamp-3 leading-relaxed">
                       {post.caption || 'No caption'}
                     </p>
+                    {post.tags && post.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {post.tags.map(tag => (
+                          <span
+                            key={tag.id}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border"
+                            style={{ borderColor: tag.color, backgroundColor: `${tag.color}22`, color: tag.color }}
+                          >
+                            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tag.color }} />
+                            {tag.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

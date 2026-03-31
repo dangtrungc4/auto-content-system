@@ -440,7 +440,7 @@ export default function PostManagement() {
                             </div>
                           )}
                         </div>
-                        <div className="max-w-xs truncate">
+                        <div className="max-w-xs">
                           <h3 className="text-sm font-semibold text-slate-100 mb-0.5 truncate">
                             {post.title ||
                               post.caption?.split("\n")[0] ||
@@ -449,6 +449,20 @@ export default function PostManagement() {
                           <p className="text-xs text-slate-500 truncate">
                             {post.caption || "Không có mô tả"}
                           </p>
+                          {post.tags && post.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {post.tags.map(tag => (
+                                <span
+                                  key={tag.id}
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border"
+                                  style={{ borderColor: tag.color, backgroundColor: `${tag.color}22`, color: tag.color }}
+                                >
+                                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tag.color }} />
+                                  {tag.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
