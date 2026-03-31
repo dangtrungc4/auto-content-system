@@ -20,6 +20,10 @@ export default function History() {
         status: filtersApplied.status
       });
       const res = await fetch(`/api/posts/history?${params.toString()}`);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML.' : `HTTP ${res.status}`);
+      }
       const data = await res.json();
       if (data.success) {
         setHistory(data.history);

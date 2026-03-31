@@ -88,7 +88,87 @@ app.get('/api/facebook/debug-token', async (req, res) => {
     }
 });
 
-// Post Management Routes
+// ── Tag CRUD Routes ──────────────────────────────────────────
+app.get('/api/tags', async (req, res) => {
+    try {
+        const tags = await configService.prisma.tag.findMany({
+            orderBy: { name: 'asc' },
+            include: { _count: { select: { posts: true } } }
+        });
+        res.json({ success: true, tags });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.post('/api/tags', async (req, res) => {
+    try {
+        const { name, color = '#3b82f6' } = req.body;
+        if (!name || !name.trim()) return res.status(400).json({ success: false, error: 'Tên tag không được để trống.' });
+        const tag = await configService.prisma.tag.create({ data: { name: name.trim(), color } });
+        res.json({ success: true, tag });
+    } catch (err) {
+        if (err.code === 'P2002') return res.status(409).json({ success: false, error: 'Tag đã tồn tại.' });
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.put('/api/tags/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const { name, color } = req.body;
+        if (!name || !name.trim()) return res.status(400).json({ success: false, error: 'Tên tag không được để trống.' });
+        const tag = await configService.prisma.tag.update({
+            where: { id },
+            data: { name: name.trim(), color }
+        });
+        res.json({ success: true, tag });
+    } catch (err) {
+        if (err.code === 'P2002') return res.status(409).json({ success: false, error: 'Tag đã tồn tại.' });
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.delete('/api/tags/:id', async (req, res) => {
+    try {
+        await configService.prisma.tag.delete({ where: { id: parseInt(req.params.id) } });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.post('/api/tags/:id/bulk-assign', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const { assignAll } = req.body; 
+        
+        // Fetch posts that should be assigned
+        const whereClause = assignAll ? {} : { tags: { none: {} } };
+        const postsToAssign = await configService.prisma.post.findMany({ select: { id: true }, where: whereClause });
+        
+        if (postsToAssign.length === 0) {
+           return res.json({ success: true, message: 'Không có bài báo nào để gán.', updatedCount: 0 });
+        }
+
+        // Connect these posts to the specific tag
+        await configService.prisma.tag.update({
+            where: { id },
+            data: {
+                posts: {
+                    connect: postsToAssign.map(p => ({ id: p.id }))
+                }
+            }
+        });
+
+        res.json({ success: true, updatedCount: postsToAssign.length });
+    } catch (err) {
+        console.error('API Error [POST /api/tags/:id/bulk-assign]:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ── Post Management Routes ────────────────────────────────────
 app.get('/api/posts', async (req, res) => {
     try {
         const { page = 1, limit = 10, search = '', status = '', authorId } = req.query;
@@ -106,33 +186,19 @@ app.get('/api/posts', async (req, res) => {
                 { location: { contains: search } }
             ];
         }
-
-        if (status) {
-            where.status = status;
-        }
-        if (authorId) {
-            where.authorId = parseInt(authorId);
-        }
+        if (status) where.status = status;
+        if (authorId) where.authorId = parseInt(authorId);
 
         const total = await configService.prisma.post.count({ where });
-
         const posts = await configService.prisma.post.findMany({
             where,
             orderBy: { createdAt: 'desc' },
             skip: (pageNum - 1) * limitNum,
-            take: limitNum
+            take: limitNum,
+            include: { tags: { select: { id: true, name: true, color: true } } }
         });
 
-        res.json({ 
-            success: true, 
-            posts, 
-            pagination: {
-                total,
-                page: pageNum,
-                limit: limitNum,
-                totalPages: Math.ceil(total / limitNum)
-            }
-        });
+        res.json({ success: true, posts, pagination: { total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) } });
     } catch (err) {
         console.error('API Error [GET /api/posts]:', err);
         res.status(500).json({ success: false, error: err.message });
@@ -140,22 +206,19 @@ app.get('/api/posts', async (req, res) => {
 });
 
 app.get('/api/posts/history', async (req, res) => {
-    // Redirect to the new generic posts API for backward compatibility
     req.url = '/api/posts';
     return app._router.handle(req, res);
 });
 
 app.post('/api/posts', async (req, res) => {
     try {
-        const postData = { ...req.body };
-        // Clean up data for Prisma
+        const { tagIds = [], ...rest } = req.body;
+        const postData = { ...rest };
         delete postData.id;
         if (postData.scheduledAt) postData.scheduledAt = new Date(postData.scheduledAt);
         if (postData.publishedAt) postData.publishedAt = new Date(postData.publishedAt);
         if (postData.authorId) postData.authorId = parseInt(postData.authorId);
         if (postData.location) postData.location = postData.location.trim();
-
-        // Ensure caption follows standard if missing: [Location] \n [Title]
         if (!postData.caption && (postData.location || postData.title)) {
             postData.caption = `${postData.location || ''}\n${postData.title || ''}`.trim();
         }
@@ -163,11 +226,11 @@ app.post('/api/posts', async (req, res) => {
         const post = await configService.prisma.post.create({
             data: {
                 ...postData,
-                status: postData.status || 'DRAFT'
-            }
+                status: postData.status || 'DRAFT',
+                tags: tagIds.length ? { connect: tagIds.map(id => ({ id: Number(id) })) } : undefined
+            },
+            include: { tags: { select: { id: true, name: true, color: true } } }
         });
-
-
         res.json({ success: true, post });
     } catch (err) {
         console.error('API Error [POST /api/posts]:', err);
@@ -179,9 +242,9 @@ app.get('/api/posts/:id', async (req, res) => {
     try {
         const id = parseInt(req.params.id);
         if (isNaN(id)) return res.status(400).json({ success: false, error: 'Invalid ID' });
-        
         const post = await configService.prisma.post.findUnique({
-            where: { id }
+            where: { id },
+            include: { tags: { select: { id: true, name: true, color: true } } }
         });
         if (!post) return res.status(404).json({ success: false, error: 'Post not found' });
         res.json({ success: true, post });
@@ -195,12 +258,12 @@ app.put('/api/posts/:id', async (req, res) => {
     try {
         const id = parseInt(req.params.id);
         if (isNaN(id)) return res.status(400).json({ success: false, error: 'Invalid ID' });
-        
-        const postData = { ...req.body };
-        // Clean up data for Prisma
+
+        const { tagIds, ...rest } = req.body;
+        const postData = { ...rest };
         delete postData.id;
-        delete postData.sheetRow; // Don't allow manual update of sheetRow
-        
+        delete postData.sheetRow;
+        delete postData.tags; // Remove nested object if any
         if (postData.scheduledAt) postData.scheduledAt = new Date(postData.scheduledAt);
         if (postData.publishedAt) postData.publishedAt = new Date(postData.publishedAt);
         if (postData.authorId) postData.authorId = parseInt(postData.authorId);
@@ -208,18 +271,21 @@ app.put('/api/posts/:id', async (req, res) => {
         if (postData.likes) postData.likes = parseInt(postData.likes);
         if (postData.comments) postData.comments = parseInt(postData.comments);
         if (postData.shares) postData.shares = parseInt(postData.shares);
-
-        // Update caption if needed
         if (!postData.caption && (postData.location || postData.title)) {
             postData.caption = `${postData.location || ''}\n${postData.title || ''}`.trim();
         }
 
+        const updateData = { ...postData };
+        if (Array.isArray(tagIds)) {
+            updateData.tags = { set: tagIds.map(tid => ({ id: Number(tid) })) };
+        }
+
         const post = await configService.prisma.post.update({
             where: { id },
-            data: postData
+            data: updateData,
+            include: { tags: { select: { id: true, name: true, color: true } } }
         });
 
-        // Sync to Google Sheet
         if (post.status === 'SCHEDULED' || post.status === 'PUBLISHED') {
             try {
                 const sheetData = {
@@ -232,10 +298,7 @@ app.put('/api/posts/:id', async (req, res) => {
                     hashtag: post.hashtag || '',
                     status: post.status === 'PUBLISHED' ? 'Đã đăng' : 'Chưa đăng'
                 };
-
-                if (post.sheetRow) {
-                    await sheetService.updatePostRow(post.sheetRow, sheetData);
-                }
+                if (post.sheetRow) await sheetService.updatePostRow(post.sheetRow, sheetData);
             } catch (sheetErr) {
                 console.error('Error syncing to sheet on update:', sheetErr.message);
             }
@@ -248,12 +311,9 @@ app.put('/api/posts/:id', async (req, res) => {
     }
 });
 
-
 app.delete('/api/posts/:id', async (req, res) => {
     try {
-        await configService.prisma.post.delete({
-            where: { id: parseInt(req.params.id) }
-        });
+        await configService.prisma.post.delete({ where: { id: parseInt(req.params.id) } });
         res.json({ success: true, message: 'Post deleted successfully' });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });

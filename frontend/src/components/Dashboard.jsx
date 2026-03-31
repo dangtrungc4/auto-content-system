@@ -8,10 +8,14 @@ export default function Dashboard({ systemState, refreshData }) {
     setLoadingAction(true);
     try {
       const endpoint = systemState.isRunning ? '/api/scheduler/stop' : '/api/scheduler/start';
-      await fetch(`http://localhost:3000${endpoint}`, { method: 'POST' });
+      const res = await fetch(endpoint, { method: 'POST' });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML.' : `HTTP ${res.status}`);
+      }
       await refreshData();
     } catch(err) {
-      console.error(err);
+      console.error('Engine toggle error:', err.message);
     } finally {
       setLoadingAction(false);
     }
@@ -20,10 +24,14 @@ export default function Dashboard({ systemState, refreshData }) {
   const runNow = async () => {
     setLoadingAction(true);
     try {
-      await fetch(`http://localhost:3000/api/run-now`, { method: 'POST' });
+      const res = await fetch('/api/run-now', { method: 'POST' });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML.' : `HTTP ${res.status}`);
+      }
       await refreshData();
     } catch(err) {
-      console.error(err);
+      console.error('Run now error:', err.message);
     } finally {
       setLoadingAction(false);
     }

@@ -21,6 +21,16 @@ model Config {
   unsplashKey       String?
 }
 
+model Tag {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  color     String   @default("#3b82f6")
+  createdAt DateTime @default(now())
+  posts     Post[]
+
+  @@map("tags")
+}
+
 model Post {
   id          Int       @id @default(autoincrement())
   title       String?   @db.Text
@@ -41,10 +51,7 @@ model Post {
   sheetRow    Int?      @unique
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-
-
+  tags        Tag[]
 
   @@map("posts")
 }
-
-

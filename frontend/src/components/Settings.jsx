@@ -26,10 +26,18 @@ export default function Settings() {
     const loadConf = async () => {
       try {
         const res = await fetch('/api/config');
+        if (!res.ok) {
+          const text = await res.text();
+          if (text.includes('<!DOCTYPE')) {
+            console.warn('Config fetch: Backend returned HTML.');
+            return;
+          }
+          throw new Error('Could not load config');
+        }
         const data = await res.json();
         setFormData(prev => ({ ...prev, ...data }));
       } catch(err) {
-        console.error('Config fetch failed', err);
+        console.error('Config fetch failed:', err.message);
       }
     };
     loadConf();
@@ -52,6 +60,10 @@ export default function Settings() {
     setPages([]);
     try {
       const res = await fetch(`/api/facebook/pages?userToken=${encodeURIComponent(formData.fbUserToken)}`);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML instead of data.' : `HTTP ${res.status}`);
+      }
       const data = await res.json();
       if (data.success && data.pages.length > 0) {
         setPages(data.pages);
@@ -59,8 +71,8 @@ export default function Settings() {
       } else {
         setStatus({ type: 'error', msg: data.error || 'Không tìm thấy Fanpage nào.' });
       }
-    } catch {
-      setStatus({ type: 'error', msg: 'Lỗi kết nối đến Facebook API.' });
+    } catch (err) {
+      setStatus({ type: 'error', msg: 'Lỗi kết nối: ' + err.message });
     } finally {
       setFetchingPages(false);
       setTimeout(() => setStatus({ type: '', msg: '' }), 6000);
@@ -73,14 +85,18 @@ export default function Settings() {
     setCheckingToken(true);
     try {
       const res = await fetch(`/api/facebook/debug-token?token=${encodeURIComponent(token)}&appId=${formData.fbAppId}&appSecret=${formData.fbAppSecret}`);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML.' : `HTTP ${res.status}`);
+      }
       const data = await res.json();
       if (data.success) {
         setTokenInfo(prev => ({ ...prev, [tokenType]: data.info }));
       } else {
         setStatus({ type: 'error', msg: `Lỗi kiểm tra token: ${data.error}` });
       }
-    } catch {
-      setStatus({ type: 'error', msg: 'Lỗi kết nối khi kiểm tra token.' });
+    } catch (err) {
+      setStatus({ type: 'error', msg: 'Lỗi kết nối: ' + err.message });
     } finally {
       setCheckingToken(false);
     }
@@ -109,14 +125,18 @@ export default function Settings() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML.' : `HTTP ${res.status}`);
+      }
       const data = await res.json();
       if (data.success) {
         setStatus({ type: 'success', msg: 'Configuration saved successfully!' });
       } else {
         setStatus({ type: 'error', msg: data.error || 'Failed to save configuration.' });
       }
-    } catch {
-      setStatus({ type: 'error', msg: 'Network error occurred while saving.' });
+    } catch (err) {
+      setStatus({ type: 'error', msg: 'Network error: ' + err.message });
     } finally {
       setLoading(false);
       setTimeout(() => setStatus({ type: '', msg: '' }), 5000);

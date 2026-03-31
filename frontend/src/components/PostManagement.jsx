@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useModal } from '../contexts/ModalContext';
 import { 
   Clock, 
   ExternalLink, 
@@ -20,7 +21,8 @@ import {
   Save,
   Eye,
   ThumbsUp,
-  Share2
+  Share2,
+  Tag
 } from 'lucide-react';
 
 export default function PostManagement() {
@@ -39,10 +41,15 @@ export default function PostManagement() {
   const [previewPost, setPreviewPost] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isImageLightboxOpen, setIsImageLightboxOpen] = useState(false);
-
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [postToDelete, setPostToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { showAlert, showConfirm } = useModal();
+  const [availableTags, setAvailableTags] = useState([]);
+  
+  useEffect(() => {
+    fetch('/api/tags').then(r => r.json()).then(data => {
+      if (data.success) setAvailableTags(data.tags);
+    }).catch(console.error);
+  }, []);
 
   const fetchPosts = useCallback(async (pageToFetch = 1) => {
     setLoading(true);
@@ -54,6 +61,10 @@ export default function PostManagement() {
         status: filtersApplied.status
       });
       const res = await fetch(`/api/posts?${params.toString()}`);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML.' : `HTTP ${res.status}`);
+      }
       const data = await res.json();
       if (data.success) {
         setPosts(data.posts);
@@ -75,32 +86,34 @@ export default function PostManagement() {
   };
 
   const handleDelete = (post) => {
-    setPostToDelete(post);
-    setIsDeleteModalOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!postToDelete) return;
-    setIsDeleting(true);
-    try {
-      const res = await fetch(`/api/posts/${postToDelete.id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        setIsDeleteModalOpen(false);
-        setPostToDelete(null);
-        fetchPosts(pagination.page);
-      } else {
-        alert('Lỗi: ' + data.error);
+    showConfirm(
+      'Xóa bài viết?',
+      `Bạn có chắc chắn muốn xóa bài viết "${post.title || 'này'}" không? Thao tác này không thể hoàn tác.`,
+      async () => {
+        setIsDeleting(true);
+        try {
+          const res = await fetch(`/api/posts/${post.id}`, { method: 'DELETE' });
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML.' : `HTTP ${res.status}`);
+          }
+          const data = await res.json();
+          if (data.success) {
+            fetchPosts(pagination.page);
+          } else {
+            showAlert('Lỗi xóa bài', data.error, 'error');
+          }
+        } catch (err) {
+          showAlert('Lỗi hệ thống', err.message, 'error');
+        } finally {
+          setIsDeleting(false);
+        }
       }
-    } catch (err) {
-      alert('Lỗi kết nối: ' + err.message);
-    } finally {
-      setIsDeleting(false);
-    }
+    );
   };
 
   const handleEdit = (post) => {
-    setEditingPost({ ...post });
+    setEditingPost({ ...post, tagIds: post.tags?.map(t => t.id) || [] });
     setActiveTab('manual');
     setQuickPasteText('');
     setIsEditModalOpen(true);
@@ -109,12 +122,12 @@ export default function PostManagement() {
   const handleParseQuickPaste = (textArg) => {
     const textToParse = typeof textArg === 'string' ? textArg : quickPasteText;
     if (!textToParse || !textToParse.trim()) {
-      alert("Vui lòng dán nội dung vào ô văn bản.");
+      showAlert("Dữ liệu trống", "Vui lòng dán nội dung vào ô văn bản.", "error");
       return;
     }
     const lines = textToParse.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     if (lines.length < 2) {
-      alert("Nội dung không đủ. Yêu cầu ít nhất 2 dòng (Địa điểm và Tiêu đề).");
+      showAlert("Nội dung không đủ", "Yêu cầu ít nhất 2 dòng (Địa điểm và Tiêu đề).", "error");
       return;
     }
 
@@ -151,7 +164,9 @@ export default function PostManagement() {
       content,
       caption,
       hashtag,
-      scheduledAt: parsedScheduledAt || prev?.scheduledAt
+      status: prev?.status || 'DRAFT',
+      scheduledAt: parsedScheduledAt,
+      tagIds: prev?.tagIds || []
     }));
 
     setActiveTab('manual');
@@ -203,11 +218,11 @@ export default function PostManagement() {
         setIsEditModalOpen(false);
         fetchPosts(pagination.page);
       } else {
-        alert('Lỗi: ' + data.error);
+        showAlert('Lỗi', data.error, 'error');
       }
     } catch (err) {
       console.error('Save error:', err);
-      alert('Lỗi khi lưu bài viết: ' + err.message);
+      showAlert('Lỗi khi lưu bài viết', err.message, 'error');
     } finally {
       setIsSaving(false);
     }
@@ -218,7 +233,7 @@ export default function PostManagement() {
     const baseQuery = editingPost.title || editingPost.location || editingPost.topic;
     
     if (!baseQuery || baseQuery.trim() === '') {
-      alert('Vui lòng nhập "Tiêu đề", "Địa điểm" hoặc "Chủ đề" để hệ thống lấy từ khóa tìm ảnh.');
+      showAlert('Vui lòng nhập từ khóa', 'Hệ thống cần ít nhất là "Tiêu đề", "Địa điểm" hoặc "Chủ đề" để lấy từ khóa tìm ảnh.', 'error');
       return;
     }
 
@@ -231,19 +246,19 @@ export default function PostManagement() {
     try {
       const res = await fetch(`/api/images/search?query=${encodeURIComponent(query)}${cacheBust}`);
       if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Lỗi server (${res.status}): ${errorText.substring(0, 100)}`);
+        const text = await res.text();
+        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML instead of data.' : `HTTP ${res.status}`);
       }
       
       const data = await res.json();
       if (data.success && data.imageUrl) {
         setEditingPost(prev => ({ ...prev, imageUrl: data.imageUrl }));
       } else {
-        alert('Không tìm thấy ảnh phù hợp với từ khóa: "' + baseQuery + '". Bạn vui lòng thử dùng Tiêu đề ngắn gọn hơn.');
+        showAlert('Tìm ảnh thất bại', 'Không tìm thấy ảnh phù hợp với từ khóa: "' + baseQuery + '". Vui lòng thử dùng Tiêu đề ngắn gọn hơn.', 'error');
       }
     } catch (err) {
       console.error('Find image error:', err);
-      alert('Lỗi khi tìm ảnh: ' + err.message);
+      showAlert('Lỗi khi tìm ảnh', err.message, 'error');
     } finally {
       setIsSaving(false);
     }
@@ -344,6 +359,7 @@ export default function PostManagement() {
               caption: "",
               location: loc,
               status: "DRAFT",
+              tagIds: []
             });
             setActiveTab("quick_paste");
             setQuickPasteText("");
@@ -733,6 +749,49 @@ export default function PostManagement() {
                     </select>
                   </div>
 
+                  {/* Tags */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1 flex items-center gap-1.5">
+                      <Tag size={12} /> Gắn Tag
+                    </label>
+                    <div className="flex flex-wrap gap-2 p-3 bg-slate-850 border border-slate-700 rounded-xl min-h-[48px]">
+                      {availableTags.length === 0 ? (
+                        <p className="text-slate-500 text-sm italic">Chưa có tag nào. Hãy tạo tag mới ở menu quản lý.</p>
+                      ) : (
+                        availableTags.map(tag => {
+                          const isSelected = editingPost.tagIds?.includes(tag.id);
+                          return (
+                            <button
+                              key={tag.id}
+                              type="button"
+                              onClick={() => {
+                                setEditingPost(prev => ({
+                                  ...prev,
+                                  tagIds: isSelected 
+                                    ? prev.tagIds.filter(id => id !== tag.id)
+                                    : [...(prev.tagIds || []), tag.id]
+                                }));
+                              }}
+                              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1.5 ${
+                                isSelected 
+                                  ? '' 
+                                  : 'bg-transparent text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-300'
+                              }`}
+                              style={isSelected ? { 
+                                borderColor: tag.color,
+                                backgroundColor: `${tag.color}33`,
+                                color: tag.color
+                              } : {}}
+                            >
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                              {tag.name}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
                   {/* Ngày đăng bài — Enhanced Date/Time Picker */}
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1 flex items-center gap-1.5">
@@ -984,48 +1043,6 @@ export default function PostManagement() {
         </div>
       )}
 
-      {/* Delete Modal */}
-      {isDeleteModalOpen && postToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-6 text-center">
-            <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Trash2 size={32} />
-            </div>
-            <h3 className="text-xl font-bold text-slate-100 mb-2">
-              Xóa bài viết?
-            </h3>
-            <p className="text-slate-400 text-sm mb-6">
-              Bạn có chắc chắn muốn xóa{" "}
-              <span className="text-slate-200 font-semibold">
-                {postToDelete.title
-                  ? `"${postToDelete.title}"`
-                  : "bài viết này"}
-              </span>{" "}
-              không? Thao tác này không thể hoàn tác.
-            </p>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => setIsDeleteModalOpen(false)}
-                className="px-5 py-2.5 rounded-xl font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all border border-slate-700 hover:border-slate-600"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={confirmDelete}
-                disabled={isDeleting}
-                className="px-5 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-500 transition-all flex items-center gap-2 shadow-lg shadow-red-500/30 disabled:opacity-50"
-              >
-                {isDeleting ? (
-                  <RefreshCw size={18} className="animate-spin" />
-                ) : (
-                  <Trash2 size={18} />
-                )}
-                {isDeleting ? "Đang xóa..." : "Xóa bài viết"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Preview Modal */}
       {previewPost && (

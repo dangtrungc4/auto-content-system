@@ -67,31 +67,43 @@ export default function Analytics() {
 
   const fetchSummary = async () => {
     try {
-      const res = await fetch('/api/analytics/summary').then(r => r.json());
-      if (res.success) setSummary(res);
-    } catch (err) { console.error('Summary fetch error:', err); }
+      const res = await fetch('/api/analytics/summary');
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML.' : `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      if (data.success) setSummary(data);
+    } catch (err) {
+      console.error('Summary fetch error:', err.message);
+    }
   };
 
   const fetchTopPosts = async (page = 1) => {
     if (loadingTop) return;
     setLoadingTop(true);
     try {
-      const res = await fetch(`/api/analytics/top-posts?page=${page}&limit=5`).then(r => r.json());
-      if (res.success) {
+      const res = await fetch(`/api/analytics/top-posts?page=${page}&limit=5`);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML.' : `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      if (data.success) {
         if (page === 1) {
-          setTopPosts(res.posts);
+          setTopPosts(data.posts);
         } else {
-          setTopPosts(prev => [...prev, ...res.posts]);
+          setTopPosts(prev => [...prev, ...data.posts]);
         }
         setTopPage(page);
-        if (page >= res.pagination.totalPages || res.posts.length === 0) {
+        if (page >= data.pagination.totalPages || data.posts.length === 0) {
           setHasMoreTop(false);
         } else {
           setHasMoreTop(true);
         }
       }
     } catch (err) { 
-      console.error('Top posts fetch error:', err); 
+      console.error('Top posts fetch error:', err.message); 
     } finally {
       setLoadingTop(false);
     }
@@ -101,22 +113,27 @@ export default function Analytics() {
     if (loadingPending) return;
     setLoadingPending(true);
     try {
-      const res = await fetch(`/api/analytics/pending-posts?page=${page}&limit=5`).then(r => r.json());
-      if (res.success) {
+      const res = await fetch(`/api/analytics/pending-posts?page=${page}&limit=5`);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML.' : `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      if (data.success) {
         if (page === 1) {
-          setPendingPosts(res.posts);
+          setPendingPosts(data.posts);
         } else {
-          setPendingPosts(prev => [...prev, ...res.posts]);
+          setPendingPosts(prev => [...prev, ...data.posts]);
         }
         setPendingPage(page);
-        if (page >= res.pagination.totalPages || res.posts.length === 0) {
+        if (page >= data.pagination.totalPages || data.posts.length === 0) {
           setHasMorePending(false);
         } else {
           setHasMorePending(true);
         }
       }
     } catch (err) { 
-      console.error('Pending posts fetch error:', err); 
+      console.error('Pending posts fetch error:', err.message); 
     } finally {
       setLoadingPending(false);
     }
@@ -125,10 +142,15 @@ export default function Analytics() {
   const fetchChartData = async (p = period) => {
     setChartLoading(true);
     try {
-      const res = await fetch(`/api/analytics/chart?period=${p}&limit=30`).then(r => r.json());
-      if (res.success) setChartData(res.data);
+      const res = await fetch(`/api/analytics/chart?period=${p}&limit=30`);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML.' : `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      if (data.success) setChartData(data.data);
     } catch (err) {
-      console.error('Chart fetch error:', err);
+      console.error('Chart fetch error:', err.message);
     } finally {
       setChartLoading(false);
     }
@@ -149,8 +171,12 @@ export default function Analytics() {
     fetchAll(period);
     // Fetch auto-sync status
     fetch('/api/analytics/auto-sync-status')
-      .then(r => r.json())
-      .then(res => { if (res.success) setAutoSyncRunning(res.isRunning); });
+      .then(async r => {
+        if (!r.ok) return { success: false };
+        return r.json();
+      })
+      .then(res => { if (res && res.success) setAutoSyncRunning(res.isRunning); })
+      .catch(() => {});
   }, []);
 
   // Refresh chart only when period changes
@@ -175,10 +201,15 @@ export default function Analytics() {
     setToggling(true);
     try {
       const endpoint = autoSyncRunning ? '/api/analytics/auto-sync/stop' : '/api/analytics/auto-sync/start';
-      const res = await fetch(endpoint, { method: 'POST' }).then(r => r.json());
-      if (res.success) setAutoSyncRunning(res.isRunning);
+      const res = await fetch(endpoint, { method: 'POST' });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML.' : `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      if (data.success) setAutoSyncRunning(data.isRunning);
     } catch (err) {
-      console.error('Toggle auto-sync error:', err);
+      console.error('Toggle auto-sync error:', err.message);
     } finally {
       setToggling(false);
     }
@@ -187,8 +218,14 @@ export default function Analytics() {
   const syncEngagement = async () => {
     setSyncing(true);
     try {
-      await fetch('/api/analytics/sync-engagement', { method: 'POST' });
+      const res = await fetch('/api/analytics/sync-engagement', { method: 'POST' });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML.' : `HTTP ${res.status}`);
+      }
       await fetchAll(period);
+    } catch (err) {
+      console.error('Sync engagement error:', err.message);
     } finally {
       setSyncing(false);
     }

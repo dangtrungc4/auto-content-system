@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 import PostManagement from './components/PostManagement';
+import TagsManagement from './components/TagsManagement';
 import Analytics from './components/Analytics';
 import Parse from './components/Parse';
-import { Bot, LayoutDashboard, Settings as SettingsIcon, History as HistoryIcon, BarChart2, FilePen, Menu } from 'lucide-react';
+import { Bot, LayoutDashboard, Settings as SettingsIcon, History as HistoryIcon, BarChart2, Tag, Menu } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('analytics');
@@ -14,12 +15,17 @@ export default function App() {
   const fetchData = async () => {
     try {
       const res = await fetch('/api/status');
-      if(res.ok) {
-        const data = await res.json();
-        setSystemState(data);
+      if (!res.ok) {
+        const text = await res.text();
+        if (text.includes('<!DOCTYPE')) {
+          console.warn('Backend is returning HTML (likely not running or proxy error)');
+        }
+        return;
       }
-    } catch {
-      console.error('Failed to fetch stats');
+      const data = await res.json();
+      setSystemState(data);
+    } catch (err) {
+      console.error('Failed to fetch stats:', err.message);
     }
   };
 
@@ -35,6 +41,7 @@ export default function App() {
       case 'dashboard': return 'Dashboard Overview';
       case 'settings': return 'Configuration Settings';
       case 'history': return 'Manage Posts';
+      case 'tags': return 'Quản lý Tags';
       case 'analytics': return 'Analytics';
       case 'parse': return 'Add New Post';
       default: return 'Automated Content System';
@@ -82,6 +89,14 @@ export default function App() {
             <span className={`transition-all duration-300 ${isSidebarOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>Manage Posts</span>
           </button>
 
+          <button 
+            onClick={() => setActiveTab('tags')}
+            className={`flex items-center rounded-xl font-medium transition-all ${isSidebarOpen ? 'px-4 gap-3' : 'px-0 justify-center'} py-3 ${activeTab === 'tags' ? 'bg-violet-500/15 text-violet-400 shadow-sm' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'} overflow-hidden whitespace-nowrap`}
+          >
+            <div className="shrink-0 flex items-center justify-center"><Tag size={20} /></div>
+            <span className={`transition-all duration-300 ${isSidebarOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>Tags</span>
+          </button>
+
           {/* <button 
             onClick={() => setActiveTab('parse')}
             className={`flex items-center rounded-xl font-medium transition-all ${isSidebarOpen ? 'px-4 gap-3' : 'px-0 justify-center'} py-3 ${activeTab === 'parse' ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'} overflow-hidden whitespace-nowrap`}
@@ -117,6 +132,7 @@ export default function App() {
             {activeTab === 'dashboard' && <Dashboard systemState={systemState} refreshData={fetchData} />}
             {activeTab === 'parse' && <Parse />}
             {activeTab === 'history' && <PostManagement />}
+            {activeTab === 'tags' && <TagsManagement />}
             {activeTab === 'analytics' && <Analytics />}
             {activeTab === 'settings' && <Settings />}
           </div>

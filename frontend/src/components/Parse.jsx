@@ -30,6 +30,10 @@ export default function Parse() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, imageUrl, priority })
       });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML.' : `HTTP ${res.status}`);
+      }
       const data = await res.json();
       if (data.success) {
         setResult(data.data);
@@ -55,6 +59,10 @@ export default function Parse() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(result)
       });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML.' : `HTTP ${res.status}`);
+      }
       const data = await res.json();
       if (data.success) {
         setIsSaved(true);
