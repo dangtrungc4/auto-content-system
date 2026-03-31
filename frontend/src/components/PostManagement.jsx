@@ -106,12 +106,13 @@ export default function PostManagement() {
     setIsEditModalOpen(true);
   };
 
-  const handleParseQuickPaste = () => {
-    if (!quickPasteText || !quickPasteText.trim()) {
+  const handleParseQuickPaste = (textArg) => {
+    const textToParse = typeof textArg === 'string' ? textArg : quickPasteText;
+    if (!textToParse || !textToParse.trim()) {
       alert("Vui lòng dán nội dung vào ô văn bản.");
       return;
     }
-    const lines = quickPasteText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const lines = textToParse.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     if (lines.length < 2) {
       alert("Nội dung không đủ. Yêu cầu ít nhất 2 dòng (Địa điểm và Tiêu đề).");
       return;
@@ -165,6 +166,17 @@ export default function PostManagement() {
       
       // Đảm bảo dữ liệu sạch trước khi gửi
       const payload = { ...editingPost };
+      
+      // Bọc title trong ngoặc kép trước khi lưu DB
+      if (payload.title) {
+        const cleanTitle = payload.title.replace(/(^["“”]+|["“”]+$)/g, '');
+        if (cleanTitle) {
+          payload.title = `"${cleanTitle}"`;
+        } else {
+          payload.title = "";
+        }
+      }
+
       if (method === 'POST') {
         delete payload.id; // Luôn xóa id khi tạo mới
       }
@@ -236,9 +248,6 @@ export default function PostManagement() {
       setIsSaving(false);
     }
   };
-
-
-
 
   const formatDateTimeLocal = (dateString) => {
     if (!dateString) return '';
@@ -598,6 +607,12 @@ export default function PostManagement() {
                   <textarea
                     value={quickPasteText}
                     onChange={(e) => setQuickPasteText(e.target.value)}
+                    onPaste={(e) => {
+                      const element = e.target;
+                      setTimeout(() => {
+                        handleParseQuickPaste(element.value);
+                      }, 50);
+                    }}
                     placeholder="Dán nội dung vào đây..."
                     className="w-full h-64 bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all resize-none shadow-inner"
                   />
@@ -635,7 +650,7 @@ export default function PostManagement() {
                     </label>
                     <input
                       type="text"
-                      value={editingPost.title ? `"${editingPost.title}"` : ""}
+                      value={editingPost.title ? `"${editingPost.title.replace(/(^["“”]+|["“”]+$)/g, '')}"` : ""}
                       onChange={(e) =>
                         setEditingPost({
                           ...editingPost,

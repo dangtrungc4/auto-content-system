@@ -155,11 +155,12 @@ async function getTopPosts(page = 1, limit = 5) {
                 id: true,
                 fbPostId: true,
                 caption: true,
+                content: true,
                 imageUrl: true,
                 likes: true,
                 comments: true,
                 shares: true,
-                createdAt: true
+                publishedAt: true
             }
         }),
         prisma.post.count({ where: { status: 'PUBLISHED' } })

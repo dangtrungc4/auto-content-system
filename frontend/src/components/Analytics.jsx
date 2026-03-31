@@ -527,7 +527,7 @@ export default function Analytics() {
                       {post.caption || "No caption"}
                     </p>
                     <p className="text-slate-600 text-xs mt-1">
-                      {new Date(post.createdAt).toLocaleDateString("vi-VN")}
+                      {post.content ? (post.content.length > 80 ? post.content.slice(0, 80) + "..." : post.content) : "Không có nội dung chính"}
                     </p>
                   </div>
 
