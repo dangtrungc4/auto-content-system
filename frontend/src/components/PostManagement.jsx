@@ -635,14 +635,14 @@ export default function PostManagement() {
                     </label>
                     <input
                       type="text"
-                      value={editingPost.title || ""}
+                      value={editingPost.title ? `"${editingPost.title}"` : ""}
                       onChange={(e) =>
                         setEditingPost({
                           ...editingPost,
-                          title: e.target.value,
+                          title: e.target.value.replace(/(^["“”]+|["“”]+$)/g, ''),
                         })
                       }
-                      placeholder="Tiêu đề bài viết..."
+                      placeholder='"Tiêu đề bài viết..."'
                       className="w-full bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all"
                     />
                   </div>
