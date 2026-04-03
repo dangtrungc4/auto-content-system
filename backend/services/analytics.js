@@ -148,7 +148,7 @@ async function getTopPosts(page = 1, limit = 5) {
     const [posts, total] = await Promise.all([
         prisma.post.findMany({
             where: { status: 'PUBLISHED' },
-            orderBy: [{ likes: 'desc' }],
+            orderBy: [{ likes: 'desc' }, { id: 'desc' }],
             skip,
             take: limit,
             select: {
@@ -186,7 +186,7 @@ async function getPendingPosts(page = 1, limit = 10) {
     const [posts, total] = await Promise.all([
         prisma.post.findMany({
             where: { status: 'SCHEDULED' },
-            orderBy: [{ scheduledAt: 'asc' }],
+            orderBy: [{ scheduledAt: 'asc' }, { id: 'asc' }],
             skip,
             take: limit,
             select: {

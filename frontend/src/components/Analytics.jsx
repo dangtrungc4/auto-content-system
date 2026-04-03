@@ -93,7 +93,11 @@ export default function Analytics() {
         if (page === 1) {
           setTopPosts(data.posts);
         } else {
-          setTopPosts(prev => [...prev, ...data.posts]);
+            setTopPosts(prev => {
+              const existingIds = new Set(prev.map(p => p.id));
+              const newPosts = data.posts.filter(p => !existingIds.has(p.id));
+              return [...prev, ...newPosts];
+            });
         }
         setTopPage(page);
         if (page >= data.pagination.totalPages || data.posts.length === 0) {
@@ -123,7 +127,11 @@ export default function Analytics() {
         if (page === 1) {
           setPendingPosts(data.posts);
         } else {
-          setPendingPosts(prev => [...prev, ...data.posts]);
+            setPendingPosts(prev => {
+              const existingIds = new Set(prev.map(p => p.id));
+              const newPosts = data.posts.filter(p => !existingIds.has(p.id));
+              return [...prev, ...newPosts];
+            });
         }
         setPendingPage(page);
         if (page >= data.pagination.totalPages || data.posts.length === 0) {
