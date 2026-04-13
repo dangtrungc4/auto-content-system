@@ -454,9 +454,7 @@ export default function Analytics() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis
                     dataKey="period"
-                    tick={{ fill: "#94a3b8", fontSize: 9 }}
-                    tickFormatter={(val) => typeof val === 'string' && val.includes('-') ? val.slice(5) : val}
-                    interval={0}
+                    tick={{ fill: "#94a3b8", fontSize: 11 }}
                   />
                   <YAxis
                     tick={{ fill: "#94a3b8", fontSize: 11 }}
@@ -486,9 +484,7 @@ export default function Analytics() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis
                     dataKey="period"
-                    tick={{ fill: "#94a3b8", fontSize: 9 }}
-                    tickFormatter={(val) => typeof val === 'string' && val.includes('-') ? val.slice(5) : val}
-                    interval={0}
+                    tick={{ fill: "#94a3b8", fontSize: 11 }}
                   />
                   <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} />
                   <Tooltip content={<CustomTooltip />} cursor={false} />
