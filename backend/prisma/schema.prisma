@@ -19,6 +19,7 @@ model Config {
   fbPageToken       String? @db.Text
   fbPageId          String?
   unsplashKey       String?
+  isAutoSyncEnabled Boolean @default(false)
 }
 
 model Tag {
@@ -52,6 +53,7 @@ model Post {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   tags        Tag[]
+  type        String?   @default("POST")
 
   @@map("posts")
 }

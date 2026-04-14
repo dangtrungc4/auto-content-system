@@ -67,7 +67,7 @@ app.get('/api/facebook/pages', async (req, res) => {
         return res.status(400).json({ success: false, error: 'userToken query param is required' });
     }
     try {
-        const response = await axios.get('https://graph.facebook.com/v25.0/me/accounts', {
+        const response = await axios.get('https://graph.facebook.com/v20.0/me/accounts', {
             params: { access_token: userToken, fields: 'id,name,access_token,category' }
         });
         res.json({ success: true, pages: response.data.data });
@@ -376,14 +376,24 @@ app.get('/api/analytics/auto-sync-status', (req, res) => {
     res.json({ success: true, isRunning: analyticsService.isAutoSyncRunning() });
 });
 
-app.post('/api/analytics/auto-sync/start', (req, res) => {
-    analyticsService.startAutoSync();
-    res.json({ success: true, isRunning: true });
+app.post('/api/analytics/auto-sync/start', async (req, res) => {
+    try {
+        await configService.saveConfig({ isAutoSyncEnabled: true });
+        analyticsService.startAutoSync();
+        res.json({ success: true, isRunning: true });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
 });
 
-app.post('/api/analytics/auto-sync/stop', (req, res) => {
-    analyticsService.stopAutoSync();
-    res.json({ success: true, isRunning: false });
+app.post('/api/analytics/auto-sync/stop', async (req, res) => {
+    try {
+        await configService.saveConfig({ isAutoSyncEnabled: false });
+        analyticsService.stopAutoSync();
+        res.json({ success: true, isRunning: false });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
 });
 
 // Image search endpoint
@@ -437,7 +447,7 @@ app.listen(PORT, async () => {
     if (config.sheetId && config.fbPageToken) {
         schedulerService.start();
     }
-    if (config.fbPageToken) {
+    if (config.fbPageToken && config.isAutoSyncEnabled) {
         analyticsService.startAutoSync();
     }
 });

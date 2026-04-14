@@ -10,12 +10,18 @@ const cron = require('node-cron');
 async function fetchFbEngagement(fbPostId) {
     if (!fbPostId) return { likes: 0, comments: 0, shares: 0 };
     const config = configService.getConfig();
-    if (!config.fbPageToken) return { likes: 0, comments: 0, shares: 0 };
+    if (!config.fbPageToken || !config.fbPageId) return { likes: 0, comments: 0, shares: 0 };
+    
     try {
-        // Dùng định dạng {page_id}_{post_id} để truy cập được toàn bộ Post object
-        const fullPostId = `${config.fbPageId}_${fbPostId}`;
+        // Facebook Post ID for analytics usually requires {page_id}_{post_id}
+        // However, many API responses already return the full ID.
+        // We check if the ID already contains an underscore.
+        let fullPostId = fbPostId;
+        if (!fbPostId.includes('_')) {
+            fullPostId = `${config.fbPageId}_${fbPostId}`;
+        }
         
-        // Dùng fields để lấy reactions, comments và shares trong cùng 1 request
+        // Use fields to get reactions, comments and shares in one request
         const res = await axios.get(`https://graph.facebook.com/v25.0/${fullPostId}`, {
             params: {
                 fields: 'reactions.summary(total_count),comments.summary(total_count),shares',
@@ -30,8 +36,10 @@ async function fetchFbEngagement(fbPostId) {
             shares: data.shares?.count || 0
         };
     } catch (error) {
-        console.error(`FB Engagement Fetch Error [${fbPostId}]:`, error.response?.data || error.message);
-        return { likes: 0, comments: 0, shares: 0 };
+        // If it fails, log but don't reset to 0 to preserve existing counts if just a temporary API error
+        const errorDetail = error.response?.data?.error?.message || error.message;
+        console.error(`FB Engagement Fetch Error [${fbPostId}]:`, errorDetail);
+        return null; // Return null to indicate failure without resetting stats
     }
 }
 
@@ -62,17 +70,25 @@ async function fetchPageStats() {
  * Sync engagement for all posts (run periodically)
  */
 async function syncEngagement() {
+    const config = configService.getConfig();
+    if (!config.fbPageToken) return;
+
     const posts = await prisma.post.findMany({ 
         where: { status: 'PUBLISHED' },
         select: { id: true, fbPostId: true } 
     });
+    
     for (const post of posts) {
         if (!post.fbPostId) continue;
         const engagement = await fetchFbEngagement(post.fbPostId);
-        await prisma.post.update({
-            where: { id: post.id },
-            data: engagement
-        });
+        
+        // Only update if we got a valid response (not null)
+        if (engagement) {
+            await prisma.post.update({
+                where: { id: post.id },
+                data: engagement
+            });
+        }
     }
 }
 
@@ -220,6 +236,13 @@ function startAutoSync() {
     if (autoSyncTask) {
         return; // Already running
     }
+    
+    const config = configService.getConfig();
+    if (!config.fbPageToken) {
+        console.log('Cannot start auto sync: Missing Facebook Page Token.');
+        return;
+    }
+
     // Sync periodically every 30 minutes
     autoSyncTask = cron.schedule('*/30 * * * *', async () => {
         console.log('Auto syncing engagement from FB...');
@@ -230,7 +253,7 @@ function startAutoSync() {
             console.error('Auto sync engagement failed:', error.message);
         }
     });
-    console.log('Auto sync engagement started (every 30 mins).');
+    console.log('Auto sync engagement task scheduled (every 30 mins).');
 }
 
 /**

@@ -8,26 +8,66 @@ module.exports = {
             throw new Error('Chưa cấu hình Facebook. Vào Settings → nhập User Token → bấm "Fetch Pages" để lấy Page ID và Page Token.');
         }
 
-        const pageId = config.fbPageId; // 'me' works for the page access token representing the page itself
-        let url = `https://graph.facebook.com/v25.0/${pageId}/feed`;
-        const payload = {
-            message,
-            access_token: config.fbPageToken
-        };
-
-        if (imageUrl) {
-            // Nếu có ảnh, sử dụng endpoint photos
-            url = `https://graph.facebook.com/v25.0/${pageId}/photos`;
-            payload.url = imageUrl;
-            payload.caption = message; // for photos, message is sent as caption
-            delete payload.message;
-        }
+        const pageId = config.fbPageId;
+        const apiVersion = 'v20.0';
+        const urls = imageUrl ? String(imageUrl).split('\n').map(u => u.trim()).filter(Boolean) : [];
 
         try {
-            const response = await axios.post(url, payload);
-            return response.data; // { id: "post_id" }
+            if (urls.length === 0) {
+                // Post text only
+                const response = await axios.post(`https://graph.facebook.com/${apiVersion}/${pageId}/feed`, {
+                    message,
+                    access_token: config.fbPageToken
+                });
+                return response.data;
+            } else if (urls.length === 1) {
+                // Single media
+                const mediaUrl = urls[0];
+                const isVideo = mediaUrl.match(/\.(mp4|mov|avi|wmv|webm)$/i);
+                
+                if (isVideo) {
+                    const response = await axios.post(`https://graph.facebook.com/${apiVersion}/${pageId}/videos`, {
+                        file_url: mediaUrl,
+                        description: message,
+                        access_token: config.fbPageToken
+                    });
+                    return response.data;
+                } else {
+                    const response = await axios.post(`https://graph.facebook.com/${apiVersion}/${pageId}/photos`, {
+                        url: mediaUrl,
+                        caption: message,
+                        access_token: config.fbPageToken
+                    });
+                    return response.data;
+                }
+            } else {
+                // Multiple media -> Upload as unpublished, then attach to feed
+                let attached_media = [];
+                for (const mediaUrl of urls) {
+                    const isVideo = mediaUrl.match(/\.(mp4|mov|avi|wmv|webm)$/i);
+                    const endpoint = isVideo ? 'videos' : 'photos';
+                    const urlKey = isVideo ? 'file_url' : 'url';
+                    
+                    const response = await axios.post(`https://graph.facebook.com/${apiVersion}/${pageId}/${endpoint}`, {
+                        [urlKey]: mediaUrl,
+                        published: false,
+                        access_token: config.fbPageToken
+                    });
+                    attached_media.push({ media_fbid: response.data.id });
+                }
+
+                // Post collection
+                const response = await axios.post(`https://graph.facebook.com/${apiVersion}/${pageId}/feed`, {
+                    message,
+                    attached_media,
+                    access_token: config.fbPageToken
+                });
+                return response.data;
+            }
         } catch (error) {
-            const errorMsg = error.response ? JSON.stringify(error.response.data) : error.message;
+            const errorMsg = error.response && error.response.data 
+                ? JSON.stringify(error.response.data) 
+                : error.message;
             throw new Error(`Facebook API Error: ${errorMsg}`);
         }
     },
@@ -45,7 +85,7 @@ module.exports = {
         const appAccessToken = `${appId}|${appSecret}`;
 
         try {
-            const response = await axios.get('https://graph.facebook.com/v25.0/debug_token', {
+            const response = await axios.get('https://graph.facebook.com/v21.0/debug_token', {
                 params: {
                     input_token: token,
                     access_token: appAccessToken

@@ -364,11 +364,21 @@ export default function Analytics() {
                       className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-xl border border-slate-700/50 hover:border-slate-600 transition-all"
                     >
                       {post.imageUrl ? (
-                        <img
-                          src={post.imageUrl}
-                          alt=""
-                          className="w-14 h-14 object-cover rounded-lg flex-shrink-0"
-                        />
+                        <>
+                          {post.imageUrl.split('\n').filter(u => u.trim())[0].match(/\.(mp4|mov|avi|wmv|webm)$/i) ? (
+                            <video 
+                              src={post.imageUrl.split('\n').filter(u => u.trim())[0]} 
+                              className="w-14 h-14 object-cover rounded-lg flex-shrink-0" 
+                              muted 
+                            />
+                          ) : (
+                            <img
+                              src={post.imageUrl.split('\n').filter(u => u.trim())[0]}
+                              alt=""
+                              className="w-14 h-14 object-cover rounded-lg flex-shrink-0"
+                            />
+                          )}
+                        </>
                       ) : (
                         <div className="w-14 h-14 bg-slate-800 rounded-lg flex-shrink-0 flex items-center justify-center text-slate-600">
                           <Clock size={20} />
@@ -560,11 +570,21 @@ export default function Analytics() {
                   </div>
 
                   {post.imageUrl && (
-                    <img
-                      src={post.imageUrl}
-                      alt=""
-                      className="w-14 h-14 object-cover rounded-lg flex-shrink-0"
-                    />
+                    <>
+                      {post.imageUrl.split('\n').filter(u => u.trim())[0].match(/\.(mp4|mov|avi|wmv|webm)$/i) ? (
+                        <video 
+                          src={post.imageUrl.split('\n').filter(u => u.trim())[0]} 
+                          className="w-14 h-14 object-cover rounded-lg flex-shrink-0" 
+                          muted 
+                        />
+                      ) : (
+                        <img
+                          src={post.imageUrl.split('\n').filter(u => u.trim())[0]}
+                          alt=""
+                          className="w-14 h-14 object-cover rounded-lg flex-shrink-0"
+                        />
+                      )}
+                    </>
                   )}
 
                   <div className="flex-1 min-w-0">
