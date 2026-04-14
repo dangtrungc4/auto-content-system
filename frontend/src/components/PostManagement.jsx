@@ -42,6 +42,7 @@ export default function PostManagement() {
   const [isSaving, setIsSaving] = useState(false);
   const [isImageLightboxOpen, setIsImageLightboxOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [tagSearch, setTagSearch] = useState('');
   const { showAlert, showConfirm } = useModal();
   const [availableTags, setAvailableTags] = useState([]);
   
@@ -80,6 +81,18 @@ export default function PostManagement() {
   useEffect(() => {
     fetchPosts(1);
   }, [filtersApplied, fetchPosts]);
+
+  // Handle Escape key to close modals
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') {
+        setIsImageLightboxOpen(false);
+        setPreviewPost(null);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, []);
 
   const handleApplyFilters = () => {
     setFiltersApplied({ search, status });
@@ -577,7 +590,7 @@ export default function PostManagement() {
       {/* Edit Modal */}
       {isEditModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
-          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/30">
               <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
                 {editingPost.id ? (
@@ -655,358 +668,347 @@ export default function PostManagement() {
                   </button>
                 </div>
               ) : (
-                <>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
-                      Địa điểm (Format: [ Địa điểm • Ngày ])
-                    </label>
-                    <input
-                      type="text"
-                      value={editingPost.location || ""}
-                      onChange={(e) =>
-                        setEditingPost({
-                          ...editingPost,
-                          location: e.target.value,
-                        })
-                      }
-                      placeholder="Ví dụ: Đà Lạt, TP.HCM..."
-                      className="w-full bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all"
-                    />
-                  </div>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  {/* Cột Trái: Nội dung chính */}
+                  <div className="lg:col-span-7 space-y-5">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
+                        Địa điểm (Format: [ Địa điểm • Ngày ])
+                      </label>
+                      <input
+                        type="text"
+                        value={editingPost.location || ""}
+                        onChange={(e) =>
+                          setEditingPost({
+                            ...editingPost,
+                            location: e.target.value,
+                          })
+                        }
+                        placeholder="Ví dụ: Đà Lạt, TP.HCM..."
+                        className="w-full bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all"
+                      />
+                    </div>
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
-                      Tiêu đề (Sẽ hiển thị dạng "Tên bài")
-                    </label>
-                    <input
-                      type="text"
-                      value={editingPost.title ? `"${editingPost.title.replace(/(^["“”]+|["“”]+$)/g, '')}"` : ""}
-                      onChange={(e) =>
-                        setEditingPost({
-                          ...editingPost,
-                          title: e.target.value.replace(/(^["“”]+|["“”]+$)/g, ''),
-                        })
-                      }
-                      placeholder='"Tiêu đề bài viết..."'
-                      className="w-full bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all"
-                    />
-                  </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
+                        Tiêu đề (Sẽ hiển thị dạng "Tên bài")
+                      </label>
+                      <input
+                        type="text"
+                        value={editingPost.title ? `"${editingPost.title.replace(/(^["“”]+|["“”]+$)/g, '')}"` : ""}
+                        onChange={(e) =>
+                          setEditingPost({
+                            ...editingPost,
+                            title: e.target.value.replace(/(^["“”]+|["“”]+$)/g, ''),
+                          })
+                        }
+                        placeholder='"Tiêu đề bài viết..."'
+                        className="w-full bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all"
+                      />
+                    </div>
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
-                      Caption (Tự động tạo từ Địa điểm & Tiêu đề nếu để trống)
-                    </label>
-                    <textarea
-                      value={editingPost.caption || ""}
-                      onChange={(e) =>
-                        setEditingPost({
-                          ...editingPost,
-                          caption: e.target.value,
-                        })
-                      }
-                      placeholder='[ Địa điểm • Ngày ]&#10;"Tên bài"'
-                      className="w-full h-20 bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all resize-none"
-                    />
-                  </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
+                        Caption (Tự động tạo từ Địa điểm & Tiêu đề nếu để trống)
+                      </label>
+                      <textarea
+                        value={editingPost.caption || ""}
+                        onChange={(e) =>
+                          setEditingPost({
+                            ...editingPost,
+                            caption: e.target.value,
+                          })
+                        }
+                        placeholder='[ Địa điểm • Ngày ]&#10;"Tên bài"'
+                        className="w-full h-24 bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all resize-none shadow-inner"
+                      />
+                    </div>
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
-                      Nội dung chính
-                    </label>
-                    <textarea
-                      value={editingPost.content || ""}
-                      onChange={(e) =>
-                        setEditingPost({
-                          ...editingPost,
-                          content: e.target.value,
-                        })
-                      }
-                      placeholder="Nội dung chính..."
-                      className="w-full h-32 bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all resize-none"
-                    />
-                  </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
+                        Nội dung chính
+                      </label>
+                      <textarea
+                        value={editingPost.content || ""}
+                        onChange={(e) =>
+                          setEditingPost({
+                            ...editingPost,
+                            content: e.target.value,
+                          })
+                        }
+                        placeholder="Nội dung chính..."
+                        className="w-full h-48 bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all resize-none shadow-inner"
+                      />
+                    </div>
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
-                      Hashtag
-                    </label>
-                    <input
-                      type="text"
-                      value={editingPost.hashtag || ""}
-                      onChange={(e) =>
-                        setEditingPost({
-                          ...editingPost,
-                          hashtag: e.target.value,
-                        })
-                      }
-                      placeholder="#hashtag1 #hashtag2..."
-                      className="w-full bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all"
-                    />
-                  </div>
-
-                  {/* Trạng thái */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
-                      Trạng thái
-                    </label>
-                    <select
-                      value={editingPost.status || "DRAFT"}
-                      onChange={(e) =>
-                        setEditingPost({ ...editingPost, status: e.target.value })
-                      }
-                      className="w-full bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all appearance-none outline-none"
-                    >
-                      <option value="DRAFT">Bản nháp</option>
-                      <option value="SCHEDULED">Chờ đăng (Lập lịch)</option>
-                      <option value="PUBLISHED">Đã đăng</option>
-                      <option value="FAILED">Lỗi</option>
-                    </select>
-                  </div>
-
-                  {/* Tags */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1 flex items-center gap-1.5">
-                      <Tag size={12} /> Gắn Tag
-                    </label>
-                    <div className="flex flex-wrap gap-2 p-3 bg-slate-850 border border-slate-700 rounded-xl min-h-[48px]">
-                      {availableTags.length === 0 ? (
-                        <p className="text-slate-500 text-sm italic">Chưa có tag nào. Hãy tạo tag mới ở menu quản lý.</p>
-                      ) : (
-                        availableTags.map(tag => {
-                          const isSelected = editingPost.tagIds?.includes(tag.id);
-                          return (
-                            <button
-                              key={tag.id}
-                              type="button"
-                              onClick={() => {
-                                setEditingPost(prev => ({
-                                  ...prev,
-                                  tagIds: isSelected 
-                                    ? prev.tagIds.filter(id => id !== tag.id)
-                                    : [...(prev.tagIds || []), tag.id]
-                                }));
-                              }}
-                              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1.5 ${
-                                isSelected 
-                                  ? '' 
-                                  : 'bg-transparent text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-300'
-                              }`}
-                              style={isSelected ? { 
-                                borderColor: tag.color,
-                                backgroundColor: `${tag.color}33`,
-                                color: tag.color
-                              } : {}}
-                            >
-                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
-                              {tag.name}
-                            </button>
-                          );
-                        })
-                      )}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
+                        Hashtag
+                      </label>
+                      <input
+                        type="text"
+                        value={editingPost.hashtag || ""}
+                        onChange={(e) =>
+                          setEditingPost({
+                            ...editingPost,
+                            hashtag: e.target.value,
+                          })
+                        }
+                        placeholder="#hashtag1 #hashtag2..."
+                        className="w-full bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all"
+                      />
                     </div>
                   </div>
 
-                  {/* Ngày đăng bài — Enhanced Date/Time Picker */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1 flex items-center gap-1.5">
-                      <Calendar size={12} /> Ngày đăng bài
-                    </label>
-
-                    {/* Quick-pick date buttons */}
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { label: '📅 Hôm nay', offset: 0 },
-                        { label: '📅 Ngày mai', offset: 1 },
-                        { label: '📅 +3 ngày', offset: 3 },
-                        { label: '📅 +7 ngày', offset: 7 },
-                      ].map(({ label, offset }) => (
-                        <button
-                          key={offset}
-                          type="button"
-                          onClick={() => {
-                            const d = new Date();
-                            d.setDate(d.getDate() + offset);
-                            // Giữ nguyên giờ hiện tại của editingPost nếu có, ngược lại giữ giờ hiện tại
-                            const existing = editingPost.scheduledAt ? new Date(editingPost.scheduledAt) : new Date();
-                            d.setHours(existing.getHours(), existing.getMinutes(), 0, 0);
-                            setEditingPost({ ...editingPost, scheduledAt: d.toISOString() });
-                          }}
-                          className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-blue-600 hover:border-blue-500 hover:text-white transition-all"
-                        >
-                          {label}
-                        </button>
-                      ))}
+                  {/* Cột Phải: Meta & Media */}
+                  <div className="lg:col-span-5 space-y-6 bg-slate-800/20 p-5 rounded-2xl border border-slate-700/30">
+                    {/* Trạng thái */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1 flex items-center gap-1.5">
+                        <MoreHorizontal size={14} /> Trạng thái
+                      </label>
+                      <select
+                        value={editingPost.status || "DRAFT"}
+                        onChange={(e) =>
+                          setEditingPost({ ...editingPost, status: e.target.value })
+                        }
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-all appearance-none outline-none shadow-sm"
+                      >
+                        <option value="DRAFT">Bản nháp</option>
+                        <option value="SCHEDULED">Chờ đăng (Lập lịch)</option>
+                        <option value="PUBLISHED">Đã đăng</option>
+                        <option value="FAILED">Lỗi</option>
+                      </select>
                     </div>
 
-                    {/* Date + Time inputs side by side */}
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <input
-                          type="date"
-                          value={editingPost.scheduledAt ? formatDateTimeLocal(editingPost.scheduledAt).split('T')[0] : ''}
-                          onChange={(e) => {
-                            const newDate = e.target.value;
-                            if (!newDate) return;
-                            setEditingPost(prev => {
-                              const timePart = prev.scheduledAt
-                                ? formatDateTimeLocal(prev.scheduledAt).split('T')[1]
-                                : '08:00';
-                              return { ...prev, scheduledAt: `${newDate}T${timePart}` };
-                            });
-                          }}
-                          style={{ colorScheme: 'dark' }}
-                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-slate-100 focus:outline-none focus:border-blue-500 transition-all text-sm"
-                        />
-                      </div>
-                      {/* Custom 24h time picker */}
-                      <div className="flex gap-1 items-center">
-                        <select
-                          value={editingPost.scheduledAt ? formatDateTimeLocal(editingPost.scheduledAt).split('T')[1]?.split(':')[0] ?? '08' : '08'}
-                          onChange={(e) => {
-                            const newHour = e.target.value;
-                            setEditingPost(prev => {
-                              const dt = formatDateTimeLocal(prev.scheduledAt || new Date().toISOString());
-                              const datePart = dt.split('T')[0];
-                              const minPart = dt.split('T')[1]?.split(':')[1] ?? '00';
-                              return { ...prev, scheduledAt: `${datePart}T${newHour}:${minPart}` };
-                            });
-                          }}
-                          style={{ colorScheme: 'dark' }}
-                          className="w-16 bg-slate-900 border border-slate-700 rounded-xl px-2 py-2.5 text-slate-100 focus:outline-none focus:border-blue-500 transition-all text-sm text-center appearance-none"
-                        >
-                          {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
-                            <option key={h} value={h}>{h}</option>
-                          ))}
-                        </select>
-                        <span className="text-slate-400 font-bold text-lg">:</span>
-                        <select
-                          value={editingPost.scheduledAt ? formatDateTimeLocal(editingPost.scheduledAt).split('T')[1]?.split(':')[1] ?? '00' : '00'}
-                          onChange={(e) => {
-                            const newMin = e.target.value;
-                            setEditingPost(prev => {
-                              const dt = formatDateTimeLocal(prev.scheduledAt || new Date().toISOString());
-                              const datePart = dt.split('T')[0];
-                              const hourPart = dt.split('T')[1]?.split(':')[0] ?? '08';
-                              return { ...prev, scheduledAt: `${datePart}T${hourPart}:${newMin}` };
-                            });
-                          }}
-                          style={{ colorScheme: 'dark' }}
-                          className="w-16 bg-slate-900 border border-slate-700 rounded-xl px-2 py-2.5 text-slate-100 focus:outline-none focus:border-blue-500 transition-all text-sm text-center appearance-none"
-                        >
-                          {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => (
-                            <option key={m} value={m}>{m}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Quick-pick time buttons */}
-                    <div className="flex gap-2 flex-wrap">
-                      {['07:00', '08:00', '12:00', '17:00', '20:00', '21:00'].map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => {
-                            const datePart = editingPost.scheduledAt
-                              ? formatDateTimeLocal(editingPost.scheduledAt).split('T')[0]
-                              : formatDateTimeLocal(new Date().toISOString()).split('T')[0];
-                            setEditingPost({ ...editingPost, scheduledAt: `${datePart}T${t}` });
-                          }}
-                          className="px-3 py-1 text-xs font-mono font-semibold rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:bg-violet-600 hover:border-violet-500 hover:text-white transition-all"
-                        >
-                          ⏰ {t}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Hiển thị ngày đã chọn ở dạng đọc được */}
-                    {editingPost.scheduledAt && (
-                      <p className="text-xs text-slate-500 pl-1">
-                        ✅ Đã chọn:{' '}
-                        <span className="text-blue-400 font-semibold font-mono">
-                          {formatDateDisplay(editingPost.scheduledAt)}
-                          {' — '}
-                          {formatDateTimeLocal(editingPost.scheduledAt).split('T')[1] || '--:--'}
-                        </span>
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Link ảnh — Enhanced với Refresh + Lightbox */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1 flex items-center gap-1.5">
-                      <ImageIcon size={12} /> Link ảnh
-                    </label>
-
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          value={editingPost.imageUrl || ""}
-                          onChange={(e) =>
-                            setEditingPost({ ...editingPost, imageUrl: e.target.value })
-                          }
-                          placeholder="URL ảnh (Unsplash, FB, etc.)..."
-                          className="w-full bg-slate-850 border border-slate-700 rounded-xl px-4 py-3 pr-10 text-slate-100 focus:outline-none focus:border-blue-500 transition-all text-sm"
-                        />
-                        {editingPost.imageUrl && (
-                          <button
-                            type="button"
-                            onClick={() => setEditingPost({ ...editingPost, imageUrl: '' })}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-red-400 transition-colors p-0.5 rounded-full hover:bg-red-400/10"
-                            title="Xóa link ảnh"
-                          >
-                            <X size={15} />
-                          </button>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between pl-1">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                          <Tag size={12} /> Gắn Tag
+                        </label>
+                        {availableTags.length > 5 && (
+                          <div className="relative">
+                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-600" size={10} />
+                            <input 
+                              type="text"
+                              placeholder="Tìm tag..."
+                              value={tagSearch}
+                              onChange={(e) => setTagSearch(e.target.value)}
+                              className="bg-slate-900/50 border border-slate-700/50 rounded-lg py-1 pl-6 pr-2 text-[10px] text-slate-300 focus:outline-none focus:border-blue-500/50 transition-all w-24 md:w-32"
+                            />
+                            {tagSearch && (
+                              <button 
+                                onClick={() => setTagSearch('')}
+                                className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400"
+                              >
+                                <X size={10} />
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
-                      {/* Nút Tìm ảnh (lần đầu) */}
-                      <button
-                        onClick={() => handleFindImage(false)}
-                        disabled={isSaving}
-                        className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-3 py-2 rounded-xl border border-blue-500 transition-all flex items-center gap-1.5 shrink-0"
-                        title="Tìm ảnh tự động (ưu tiên ảnh Việt Nam)"
-                      >
-                        <Search size={15} />
-                        <span className="text-xs font-semibold">Tìm ảnh</span>
-                      </button>
-                      {/* Nút Refresh — chỉ hiện khi đã có ảnh */}
-                      {editingPost.imageUrl && (
-                        <button
-                          onClick={() => handleFindImage(true)}
-                          disabled={isSaving}
-                          className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white px-3 py-2 rounded-xl border border-amber-500 transition-all flex items-center gap-1.5 shrink-0"
-                          title="Làm mới ảnh — tìm ảnh khác"
-                        >
-                          <RefreshCw size={15} className={isSaving ? 'animate-spin' : ''} />
-                          <span className="text-xs font-semibold">Đổi ảnh</span>
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Thumbnail preview — click để xem lớn */}
-                    {editingPost.imageUrl && (
-                      <div
-                        className="relative group cursor-pointer w-full h-36 rounded-xl border border-slate-700 overflow-hidden bg-slate-800 shadow-inner"
-                        onClick={() => setIsImageLightboxOpen(true)}
-                        title="Click để xem ảnh lớn"
-                      >
-                        <img
-                          src={editingPost.imageUrl}
-                          alt="Preview"
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                        {/* Overlay icon */}
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <div className="bg-white/20 backdrop-blur-sm rounded-full p-3">
-                            <Eye size={22} className="text-white" />
-                          </div>
-                          <span className="absolute bottom-2 right-3 text-xs text-white/80 font-medium">Nhấn để phóng to</span>
+                      
+                      <div className="bg-slate-900 border border-slate-700 rounded-xl p-3 shadow-sm">
+                        <div className="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto custom-scrollbar pr-1">
+                          {availableTags.length === 0 ? (
+                            <p className="text-slate-500 text-sm italic">Chưa có tag nào.</p>
+                          ) : (
+                            availableTags
+                              .filter(tag => tag.name.toLowerCase().includes(tagSearch.toLowerCase()) || (editingPost.tagIds?.includes(tag.id)))
+                              .sort((a, b) => {
+                                // Đưa các tag đã chọn lên đầu
+                                const aSelected = editingPost.tagIds?.includes(a.id);
+                                const bSelected = editingPost.tagIds?.includes(b.id);
+                                if (aSelected && !bSelected) return -1;
+                                if (!aSelected && bSelected) return 1;
+                                return 0;
+                              })
+                              .map(tag => {
+                                const isSelected = editingPost.tagIds?.includes(tag.id);
+                                return (
+                                  <button
+                                    key={tag.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingPost(prev => ({
+                                        ...prev,
+                                        tagIds: isSelected 
+                                          ? prev.tagIds.filter(id => id !== tag.id)
+                                          : [...(prev.tagIds || []), tag.id]
+                                      }));
+                                    }}
+                                    className={`px-2 py-1 rounded-full text-[11px] font-semibold border transition-all flex items-center gap-1.5 ${
+                                      isSelected 
+                                        ? '' 
+                                        : 'bg-transparent text-slate-400 border-slate-800 hover:border-slate-500 hover:text-slate-300'
+                                    }`}
+                                    style={isSelected ? { 
+                                      borderColor: tag.color,
+                                      backgroundColor: `${tag.color}33`,
+                                      color: tag.color
+                                    } : {}}
+                                  >
+                                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tag.color }} />
+                                    {tag.name}
+                                  </button>
+                                );
+                              })
+                          )}
+                          {availableTags.filter(tag => tag.name.toLowerCase().includes(tagSearch.toLowerCase())).length === 0 && tagSearch && (
+                            <p className="text-slate-600 text-[10px] italic py-2 w-full text-center">Không tìm thấy tag phù hợp.</p>
+                          )}
                         </div>
                       </div>
-                    )}
+                    </div>
+
+                    {/* Ngày đăng bài */}
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1 flex items-center gap-1.5">
+                        <Calendar size={12} /> Lập lịch đăng
+                      </label>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <div className="flex gap-2">
+                          <input
+                            type="date"
+                            value={editingPost.scheduledAt ? formatDateTimeLocal(editingPost.scheduledAt).split('T')[0] : ''}
+                            onChange={(e) => {
+                              const newDate = e.target.value;
+                              if (!newDate) return;
+                              setEditingPost(prev => {
+                                const timePart = prev.scheduledAt
+                                  ? formatDateTimeLocal(prev.scheduledAt).split('T')[1]
+                                  : '08:00';
+                                return { ...prev, scheduledAt: `${newDate}T${timePart}` };
+                              });
+                            }}
+                            style={{ colorScheme: 'dark' }}
+                            className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-slate-100 focus:outline-none focus:border-blue-500 transition-all text-sm shadow-sm"
+                          />
+                          <div className="flex gap-1 items-center bg-slate-900 border border-slate-700 rounded-xl px-2 py-1 shadow-sm">
+                            <select
+                              value={editingPost.scheduledAt ? formatDateTimeLocal(editingPost.scheduledAt).split('T')[1]?.split(':')[0] ?? '08' : '08'}
+                              onChange={(e) => {
+                                const newHour = e.target.value;
+                                setEditingPost(prev => {
+                                  const dt = formatDateTimeLocal(prev.scheduledAt || new Date().toISOString());
+                                  const datePart = dt.split('T')[0];
+                                  const minPart = dt.split('T')[1]?.split(':')[1] ?? '00';
+                                  return { ...prev, scheduledAt: `${datePart}T${newHour}:${minPart}` };
+                                });
+                              }}
+                              className="bg-transparent text-slate-100 focus:outline-none text-sm text-center outline-none appearance-none cursor-pointer"
+                            >
+                              {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
+                                <option key={h} value={h} className="bg-slate-900">{h}</option>
+                              ))}
+                            </select>
+                            <span className="text-slate-600 font-bold">:</span>
+                            <select
+                              value={editingPost.scheduledAt ? formatDateTimeLocal(editingPost.scheduledAt).split('T')[1]?.split(':')[1] ?? '00' : '00'}
+                              onChange={(e) => {
+                                const newMin = e.target.value;
+                                setEditingPost(prev => {
+                                  const dt = formatDateTimeLocal(prev.scheduledAt || new Date().toISOString());
+                                  const datePart = dt.split('T')[0];
+                                  const hourPart = dt.split('T')[1]?.split(':')[0] ?? '08';
+                                  return { ...prev, scheduledAt: `${datePart}T${hourPart}:${newMin}` };
+                                });
+                              }}
+                              className="bg-transparent text-slate-100 focus:outline-none text-sm text-center outline-none appearance-none cursor-pointer"
+                            >
+                              {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => (
+                                <option key={m} value={m} className="bg-slate-900">{m}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1.5">
+                          {['07:00', '08:00', '12:00', '17:00'].map((t) => (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => {
+                                const datePart = editingPost.scheduledAt
+                                  ? formatDateTimeLocal(editingPost.scheduledAt).split('T')[0]
+                                  : formatDateTimeLocal(new Date().toISOString()).split('T')[0];
+                                setEditingPost({ ...editingPost, scheduledAt: `${datePart}T${t}` });
+                              }}
+                              className="px-2.5 py-1 text-[10px] font-mono font-semibold rounded-lg bg-slate-900 border border-slate-700 text-slate-500 hover:bg-blue-600 hover:border-blue-500 hover:text-white transition-all shadow-sm"
+                            >
+                              {t}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Link ảnh */}
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1 flex items-center gap-1.5">
+                        <ImageIcon size={12} /> Hình ảnh
+                      </label>
+
+                      <div className="space-y-3">
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <input
+                              type="text"
+                              value={editingPost.imageUrl || ""}
+                              onChange={(e) =>
+                                setEditingPost({ ...editingPost, imageUrl: e.target.value })
+                              }
+                              placeholder="URL ảnh..."
+                              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 pr-8 text-slate-100 focus:outline-none focus:border-blue-500 transition-all text-xs shadow-inner"
+                            />
+                            {editingPost.imageUrl && (
+                              <button
+                                type="button"
+                                onClick={() => setEditingPost({ ...editingPost, imageUrl: '' })}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600 hover:text-red-400 p-0.5"
+                              >
+                                <X size={14} />
+                              </button>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleFindImage(false)}
+                            disabled={isSaving}
+                            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
+                          >
+                            <Search size={14} />
+                            <span className="text-[11px] font-bold">Tìm</span>
+                          </button>
+                        </div>
+
+                        {editingPost.imageUrl && (
+                          <div
+                            className="relative group cursor-pointer w-full h-32 rounded-xl border border-slate-700 overflow-hidden bg-slate-900 shadow-md group"
+                            onClick={() => setIsImageLightboxOpen(true)}
+                          >
+                            <img
+                              src={editingPost.imageUrl}
+                              alt="Preview"
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                              <Eye size={20} className="text-white" />
+                              <span className="text-[10px] text-white font-medium">Xem ảnh lớn</span>
+                            </div>
+                            <button
+                               onClick={(e) => { e.stopPropagation(); handleFindImage(true); }}
+                               className="absolute bottom-2 right-2 p-1.5 bg-amber-500 text-white rounded-lg shadow-lg hover:bg-amber-400 transition-all scale-0 group-hover:scale-100"
+                               title="Đổi ảnh khác"
+                            >
+                               <RefreshCw size={14} className={isSaving ? 'animate-spin' : ''} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </>
+                </div>
               )}
             </div>
 
