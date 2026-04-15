@@ -490,6 +490,24 @@ app.get('/api/prompt/history', async (req, res) => {
     }
 });
 
+app.delete('/api/prompt/history/:id', async (req, res) => {
+    try {
+        await promptService.deleteHistoryItem(req.params.id);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.delete('/api/prompt/history', async (req, res) => {
+    try {
+        await promptService.clearHistory();
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 app.post('/api/prompt/seed', async (req, res) => {
     try {
         await promptSeeder.seedKeywords();

@@ -122,9 +122,29 @@ async function saveToHistory(prompt) {
     }
 }
 
+/**
+ * Deletes a single history item by ID
+ */
+async function deleteHistoryItem(id) {
+    const prisma = configService.prisma;
+    return await prisma.promptHistory.delete({
+        where: { id: parseInt(id) }
+    });
+}
+
+/**
+ * Clears the entire prompt history
+ */
+async function clearHistory() {
+    const prisma = configService.prisma;
+    return await prisma.promptHistory.deleteMany({});
+}
+
 module.exports = {
     generatePrompt,
     translateToEnglish,
     getLibrary,
-    saveToHistory
+    saveToHistory,
+    deleteHistoryItem,
+    clearHistory
 };
