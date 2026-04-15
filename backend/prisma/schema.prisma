@@ -14,12 +14,14 @@ model Config {
   googleClientEmail String?
   googlePrivateKey  String? @db.Text
   fbAppId           String?
-  fbAppSecret       String?
-  fbUserToken       String? @db.Text
   fbPageToken       String? @db.Text
-  fbPageId          String?
   unsplashKey       String?
+  fbPageId          String?
+  fbUserToken       String? @db.Text
+  fbAppSecret       String?
   isAutoSyncEnabled Boolean @default(false)
+  bannedWords       String? @db.Text
+  geminiApiKey      String? @db.Text
 }
 
 model Tag {
@@ -27,7 +29,7 @@ model Tag {
   name      String   @unique
   color     String   @default("#3b82f6")
   createdAt DateTime @default(now())
-  posts     Post[]
+  posts     Post[]   @relation("PostToTag")
 
   @@map("tags")
 }
@@ -38,7 +40,7 @@ model Post {
   content     String?   @db.Text
   caption     String?   @db.Text
   imageUrl    String?   @db.Text
-  status      String?   @default("DRAFT") // DRAFT, SCHEDULED, PUBLISHED, FAILED
+  status      String?   @default("DRAFT")
   fbPostId    String?   @unique
   scheduledAt DateTime?
   publishedAt DateTime?
@@ -46,14 +48,44 @@ model Post {
   comments    Int       @default(0)
   shares      Int       @default(0)
   authorId    Int?
-  topic       String?   @db.Text
-  hashtag     String?   @db.Text
-  location    String?   @db.Text
-  sheetRow    Int?      @unique
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  tags        Tag[]
+  hashtag     String?   @db.Text
+  topic       String?   @db.Text
+  location    String?   @db.Text
+  sheetRow    Int?      @unique
   type        String?   @default("POST")
+  tags        Tag[]     @relation("PostToTag")
 
   @@map("posts")
+}
+
+model PromptCategory {
+  id        Int             @id @default(autoincrement())
+  name      String          @unique
+  createdAt DateTime        @default(now())
+  keywords  PromptKeyword[]
+
+  @@map("prompt_categories")
+}
+
+model PromptKeyword {
+  id          Int            @id @default(autoincrement())
+  name        String
+  label       String?
+  description String?        @db.Text
+  categoryId  Int
+  createdAt   DateTime       @default(now())
+  category    PromptCategory @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId], map: "prompt_keywords_categoryId_fkey")
+  @@map("prompt_keywords")
+}
+
+model PromptHistory {
+  id        Int      @id @default(autoincrement())
+  prompt    String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@map("prompt_history")
 }

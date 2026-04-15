@@ -22,7 +22,7 @@ async function fetchFbEngagement(fbPostId) {
         }
         
         // Use fields to get reactions, comments and shares in one request
-        const res = await axios.get(`https://graph.facebook.com/v25.0/${fullPostId}`, {
+        const res = await axios.get(`https://graph.facebook.com/v20.0/${fullPostId}`, {
             params: {
                 fields: 'reactions.summary(total_count),comments.summary(total_count),shares',
                 access_token: config.fbPageToken
@@ -50,7 +50,7 @@ async function fetchPageStats() {
     const config = configService.getConfig();
     if (!config.fbPageToken || !config.fbPageId) return { followersCount: 0, fanCount: 0 };
     try {
-        const res = await axios.get(`https://graph.facebook.com/v25.0/${config.fbPageId}`, {
+        const res = await axios.get(`https://graph.facebook.com/v20.0/${config.fbPageId}`, {
             params: {
                 fields: 'followers_count,fan_count',
                 access_token: config.fbPageToken

@@ -5,7 +5,8 @@ import PostManagement from './components/PostManagement';
 import TagsManagement from './components/TagsManagement';
 import Analytics from './components/Analytics';
 import Parse from './components/Parse';
-import { Bot, LayoutDashboard, Settings as SettingsIcon, History as HistoryIcon, BarChart2, Tag, Menu } from 'lucide-react';
+import PromptGenerator from './components/PromptGenerator';
+import { Bot, LayoutDashboard, Settings as SettingsIcon, History as HistoryIcon, BarChart2, Tag, Menu, Sparkles } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('analytics');
@@ -44,6 +45,7 @@ export default function App() {
       case 'tags': return 'Quản lý Tags';
       case 'analytics': return 'Analytics';
       case 'parse': return 'Add New Post';
+      case 'prompt': return 'AI Prompt Generator';
       default: return 'Automated Content System';
     }
   };
@@ -97,6 +99,14 @@ export default function App() {
             <span className={`transition-all duration-300 ${isSidebarOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>Tags</span>
           </button>
 
+          <button 
+            onClick={() => setActiveTab('prompt')}
+            className={`flex items-center rounded-xl font-medium transition-all ${isSidebarOpen ? 'px-4 gap-3' : 'px-0 justify-center'} py-3 ${activeTab === 'prompt' ? 'bg-amber-500/15 text-amber-400 shadow-sm' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'} overflow-hidden whitespace-nowrap`}
+          >
+            <div className="shrink-0 flex items-center justify-center"><Sparkles size={20} /></div>
+            <span className={`transition-all duration-300 ${isSidebarOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>AI Prompt Gen</span>
+          </button>
+
           {/* <button 
             onClick={() => setActiveTab('parse')}
             className={`flex items-center rounded-xl font-medium transition-all ${isSidebarOpen ? 'px-4 gap-3' : 'px-0 justify-center'} py-3 ${activeTab === 'parse' ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'} overflow-hidden whitespace-nowrap`}
@@ -134,6 +144,7 @@ export default function App() {
             {activeTab === 'history' && <PostManagement />}
             {activeTab === 'tags' && <TagsManagement />}
             {activeTab === 'analytics' && <Analytics />}
+            {activeTab === 'prompt' && <PromptGenerator />}
             {activeTab === 'settings' && <Settings />}
           </div>
         </div>

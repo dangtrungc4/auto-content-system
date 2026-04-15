@@ -9,6 +9,8 @@ const fbService = require('./services/facebook');
 const analyticsService = require('./services/analytics');
 const parseService = require('./services/parse');
 const images = require('./services/images');
+const promptService = require('./services/prompt');
+const promptSeeder = require('./services/promptSeeder');
 
 
 const app = express();
@@ -438,6 +440,64 @@ app.post('/api/save', async (req, res) => {
     }
 });
 
+
+// AI Prompt Generator Routes
+app.get('/api/prompt/library', async (req, res) => {
+    try {
+        const library = await promptService.getLibrary();
+        res.json({ success: true, library });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.post('/api/prompt/generate', async (req, res) => {
+    try {
+        const { subject, keywords, aspectRatio, negativePrompt } = req.body;
+        
+        // Auto-translate subject if it contains non-English characters (basic check)
+        const isVietnamese = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(subject);
+        let finalSubject = subject;
+        if (isVietnamese) {
+            finalSubject = await promptService.translateToEnglish(subject);
+        }
+
+        const prompt = promptService.generatePrompt({ 
+            subject: finalSubject, 
+            keywords, 
+            aspectRatio, 
+            negativePrompt 
+        });
+
+        // Save to history
+        await promptService.saveToHistory(prompt);
+
+        res.json({ success: true, prompt, translatedSubject: isVietnamese ? finalSubject : null });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/prompt/history', async (req, res) => {
+    try {
+        const history = await configService.prisma.promptHistory.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 20
+        });
+        res.json({ success: true, history });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.post('/api/prompt/seed', async (req, res) => {
+    try {
+        await promptSeeder.seedKeywords();
+        res.json({ success: true, message: 'Library seeded successfully' });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 
 app.listen(PORT, async () => {
     console.log(`Server is running on http://localhost:${PORT}`);

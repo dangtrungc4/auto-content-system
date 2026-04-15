@@ -12,7 +12,9 @@ export default function Settings() {
     fbPageToken: '',
     fbPageId: '',
     fbAppSecret: '',
-    unsplashKey: ''
+    unsplashKey: '',
+    bannedWords: '',
+    geminiApiKey: ''
   });
 
   const [status, setStatus] = useState({ type: '', msg: '' });
@@ -358,6 +360,37 @@ export default function Settings() {
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">API Key</label>
             <input type="password" name="unsplashKey" value={formData.unsplashKey} onChange={handleChange} className={`${inputCls} focus:border-amber-500 focus:ring-amber-500`} />
+          </div>
+        </section>
+
+        {/* AI Prompt Generator */}
+        <section>
+          <h3 className="text-lg font-semibold text-violet-400 mb-4 border-b border-slate-700 pb-2">AI Prompt Generator</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Gemini API Key</label>
+              <input 
+                type="password" 
+                name="geminiApiKey" 
+                value={formData.geminiApiKey} 
+                onChange={handleChange} 
+                className={`${inputCls} focus:border-violet-500 focus:ring-violet-500`}
+                placeholder="Google AI Studio API Key"
+              />
+              <p className="mt-1.5 text-xs text-slate-500">Required for Vietnamese to English translation and prompt enhancement.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Banned Words Filter</label>
+              <textarea 
+                name="bannedWords" 
+                value={formData.bannedWords} 
+                onChange={handleChange} 
+                rows="3" 
+                className={`${inputCls} focus:border-violet-500 focus:ring-violet-500`}
+                placeholder="e.g. nsfw, gore, violent (separated by comma)"
+              ></textarea>
+              <p className="mt-1.5 text-xs text-slate-500">Words to be automatically filtered out from generated prompts.</p>
+            </div>
           </div>
         </section>
 
