@@ -150,7 +150,6 @@ export default function PromptGenerator() {
                 <textarea
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  placeholder="Ví dụ: Chân dung một phi hành gia trên sao hỏa..."
                   className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all min-h-[100px] text-lg"
                 />
                 <p className="mt-1.5 text-xs text-slate-500 flex items-center gap-1">
