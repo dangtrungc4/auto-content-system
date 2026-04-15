@@ -68,27 +68,50 @@ async function fetchPageStats() {
 
 /**
  * Sync engagement for all posts (run periodically)
+ * Optimization: Fetch feed summary instead of individual post lookups
+ * to bypass permission restrictions on direct ID lookups.
  */
 async function syncEngagement() {
     const config = configService.getConfig();
-    if (!config.fbPageToken) return;
+    if (!config.fbPageToken || !config.fbPageId) return;
 
-    const posts = await prisma.post.findMany({ 
-        where: { status: 'PUBLISHED' },
-        select: { id: true, fbPostId: true } 
-    });
-    
-    for (const post of posts) {
-        if (!post.fbPostId) continue;
-        const engagement = await fetchFbEngagement(post.fbPostId);
-        
-        // Only update if we got a valid response (not null)
-        if (engagement) {
-            await prisma.post.update({
-                where: { id: post.id },
+    try {
+        // Fetch recent posts from feed with summary data
+        const res = await axios.get(`https://graph.facebook.com/v20.0/${config.fbPageId}/posts`, {
+            params: {
+                fields: 'id,reactions.summary(total_count),comments.summary(total_count),shares',
+                access_token: config.fbPageToken,
+                limit: 100 // Sync up to 100 recent posts
+            }
+        });
+
+        if (!res.data || !res.data.data) return;
+
+        for (const fbPost of res.data.data) {
+            const engagement = {
+                likes: fbPost.reactions?.summary?.total_count || 0,
+                comments: fbPost.comments?.summary?.total_count || 0,
+                shares: fbPost.shares?.count || 0
+            };
+
+            // Update DB if fbPostId matches. We match on the ID returned by FB.
+            // Note: FB ID usually is {page_id}_{post_id}
+            await prisma.post.updateMany({
+                where: { fbPostId: fbPost.id },
                 data: engagement
             });
+            
+            // Also try matching without the page_id prefix just in case
+            const shortId = fbPost.id.split('_')[1];
+            if (shortId) {
+                await prisma.post.updateMany({
+                    where: { fbPostId: shortId },
+                    data: engagement
+                });
+            }
         }
+    } catch (error) {
+        console.error('Bulk Engagement Sync Error:', error.response?.data?.error?.message || error.message);
     }
 }
 
