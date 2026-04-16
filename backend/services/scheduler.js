@@ -198,7 +198,12 @@ async function processPosts() {
         });
 
         // 2. Get from Google Sheets (Existing)
-        const sheetPendingPosts = await googleSheets.getPendingPosts();
+        let sheetPendingPosts = [];
+        try {
+            sheetPendingPosts = await googleSheets.getPendingPosts();
+        } catch (sheetErr) {
+            addLog('error', `Google Sheets API Error, bypassing this cycle: ${sheetErr.message}`);
+        }
         
         // Add unique posts to queue
         let addedCount = 0;
@@ -242,7 +247,6 @@ async function processPosts() {
 
     } catch (err) {
         addLog('error', `System error during sync: ${err.message}`);
-        throw err;
     } finally {
         isJobRunning = false;
     }
