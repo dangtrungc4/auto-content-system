@@ -31,8 +31,8 @@ function generatePrompt({ subject, keywords = [], negativePrompt = '', aspectRat
     const parts = [filteredSubject.trim(), ...keywords];
     let prompt = parts.filter(p => p).join(', ');
 
-    // Add quality tags
-    prompt += ', highly detailed, 8k resolution, cinematic lighting, masterpiece';
+    // Add quality tags (Updated to match Action Plan + User "8k" preference)
+    prompt += ', ultra realistic, high detail, 8k resolution, cinematic lighting, masterpiece';
 
     // Add Midjourney specific parameters if needed, or just general ones
     if (aspectRatio) {
@@ -61,13 +61,27 @@ async function translateToEnglish(text) {
         const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
         const prompt = `
-            Task: Translate and enhance the following description into a highly descriptive, technical English subject for an AI image generation model (like Midjourney or DALL-E).
+            Task: Transform the input description into a highly detailed, 8-layer advanced AI image generation prompt.
             Input: "${text}"
+
+            Structure (8 Layers):
+            1. Subject: Detailed description (age, nationality, physical traits).
+            2. Identity & Details: Clothing, props, physical state.
+            3. Action & Emotion: Psychological depth, specific actions, emotions.
+            4. Environment: Clear context, location, surroundings.
+            5. Lighting & Atmosphere: Lighting type, mood, weather, atmosphere.
+            6. Composition & Camera: Shot type (close-up, wide, etc.), camera angle, lens details (e.g. 50mm, f/1.8).
+            7. Style & Reference: Aesthetic, art style, film style (e.g. cinematic indie film).
+            8. Technical & Quality Tags: Quality indicators (e.g. ultra realistic, high detail, 8k).
+
             Rules:
             1. If it's in Vietnamese, translate it to English.
-            2. Enhance it with 3-5 relevant descriptive keywords (e.g. textures, mood, specific details).
-            3. Keep the output concise (max 30 words).
-            4. Return ONLY the translated/enhanced string, no extra commentary.
+            2. Strictly follow the 8-layer structure, separating each layer with a comma.
+            3. Expand the input with visual richness while keeping it relevant.
+            4. Return ONLY the final prompt string, no extra commentary or labels.
+            
+            Example Format:
+            [Subject], [Identity Details], [Action + Emotion], [Environment], [Lighting + Atmosphere], [Composition + Camera], [Style + Reference], [Technical Quality Tags]
         `;
 
         const result = await model.generateContent(prompt);
