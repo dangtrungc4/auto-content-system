@@ -367,10 +367,45 @@ app.get('/api/analytics/pending-posts', async (req, res) => {
 
 app.post('/api/analytics/sync-engagement', async (req, res) => {
     try {
-        await analyticsService.syncEngagement();
-        res.json({ success: true, message: 'Engagement synced' });
+        const updatedCount = await analyticsService.syncEngagement();
+        res.json({ success: true, message: 'Engagement synced', updatedCount: updatedCount || 0 });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// DEBUG: Check what's in DB and what FB returns for first 5 posts
+app.get('/api/analytics/debug-posts', async (req, res) => {
+    try {
+        const axios = require('axios');
+        const config = configService.getConfig();
+        const { PrismaClient } = require('@prisma/client');
+        const prisma = configService.prisma;
+
+        const posts = await prisma.post.findMany({
+            where: { status: 'PUBLISHED', fbPostId: { not: null } },
+            select: { id: true, fbPostId: true, title: true, publishedAt: true },
+            take: 5,
+            orderBy: { publishedAt: 'desc' }
+        });
+
+        const results = [];
+        for (const post of posts) {
+            try {
+                const r = await axios.get(`https://graph.facebook.com/v20.0/${post.fbPostId}`, {
+                    params: {
+                        fields: 'id,reactions.summary(true),comments.summary(true),shares',
+                        access_token: config.fbPageToken
+                    }
+                });
+                results.push({ dbId: post.id, storedFbId: post.fbPostId, fbResponse: r.data });
+            } catch (e) {
+                results.push({ dbId: post.id, storedFbId: post.fbPostId, error: e.response?.data?.error || e.message });
+            }
+        }
+        res.json({ posts, fbResults: results });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 

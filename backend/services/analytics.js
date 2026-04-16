@@ -73,45 +73,68 @@ async function fetchPageStats() {
  */
 async function syncEngagement() {
     const config = configService.getConfig();
-    if (!config.fbPageToken || !config.fbPageId) return;
+    if (!config.fbPageToken || !config.fbPageId) return 0;
 
     try {
-        // Fetch recent posts from feed with summary data
-        const res = await axios.get(`https://graph.facebook.com/v20.0/${config.fbPageId}/posts`, {
-            params: {
-                fields: 'id,reactions.summary(total_count),comments.summary(total_count),shares',
-                access_token: config.fbPageToken,
-                limit: 100 // Sync up to 100 recent posts
-            }
+        const dbPosts = await prisma.post.findMany({
+            where: { status: 'PUBLISHED', fbPostId: { not: null } },
+            select: { id: true, fbPostId: true }
         });
 
-        if (!res.data || !res.data.data) return;
+        if (dbPosts.length === 0) {
+            console.log('Sync Engagement: No published posts found in database.');
+            return 0;
+        }
 
-        for (const fbPost of res.data.data) {
-            const engagement = {
-                likes: fbPost.reactions?.summary?.total_count || 0,
-                comments: fbPost.comments?.summary?.total_count || 0,
-                shares: fbPost.shares?.count || 0
-            };
+        let updatedCount = 0;
+        const CONCURRENCY = 5;
 
-            // Update DB if fbPostId matches. We match on the ID returned by FB.
-            // Note: FB ID usually is {page_id}_{post_id}
-            await prisma.post.updateMany({
-                where: { fbPostId: fbPost.id },
-                data: engagement
-            });
-            
-            // Also try matching without the page_id prefix just in case
-            const shortId = fbPost.id.split('_')[1];
-            if (shortId) {
-                await prisma.post.updateMany({
-                    where: { fbPostId: shortId },
+        async function fetchSinglePost(post) {
+            try {
+                // Fetch directly with the stored ID
+                const res = await axios.get(`https://graph.facebook.com/v20.0/${post.fbPostId}`, {
+                    params: {
+                        fields: 'id,reactions.summary(true),comments.summary(true),shares',
+                        access_token: config.fbPageToken
+                    }
+                });
+
+                if (!res.data) return;
+
+                const fbData = res.data;
+                const engagement = {
+                    likes: fbData.reactions?.summary?.total_count || 0,
+                    comments: fbData.comments?.summary?.total_count || 0,
+                    shares: fbData.shares?.count || 0
+                };
+
+                await prisma.post.update({
+                    where: { id: post.id },
                     data: engagement
                 });
+                updatedCount++;
+            } catch (err) {
+                const fbErr = err.response?.data?.error;
+                // Silently skip deleted/unavailable posts or specific API limitations
+                if (fbErr && (fbErr.code === 100 || fbErr.code === 803)) {
+                    console.warn(`Post skipped (ID: ${post.fbPostId}): ${fbErr.message}`);
+                } else {
+                    console.error(`Sync Error (ID: ${post.fbPostId}):`, fbErr?.message || err.message);
+                }
             }
         }
+
+        // Process with concurrency control
+        for (let i = 0; i < dbPosts.length; i += CONCURRENCY) {
+            const chunk = dbPosts.slice(i, i + CONCURRENCY);
+            await Promise.allSettled(chunk.map(post => fetchSinglePost(post)));
+        }
+
+        console.log(`Sync Engagement: Updated ${updatedCount}/${dbPosts.length} posts.`);
+        return updatedCount;
     } catch (error) {
-        console.error('Bulk Engagement Sync Error:', error.response?.data?.error?.message || error.message);
+        console.error('Sync Engagement Fatal Error:', error.message);
+        return 0;
     }
 }
 

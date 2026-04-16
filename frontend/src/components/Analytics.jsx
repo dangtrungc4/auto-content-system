@@ -164,13 +164,13 @@ export default function Analytics() {
     }
   };
 
-  const fetchAll = useCallback(async (p = period) => {
-    setLoading(true);
+  const fetchAll = useCallback(async (p = period, isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       await Promise.all([fetchSummary(), fetchChartData(p), fetchTopPosts(1), fetchPendingPosts(1)]);
       setLastUpdated(new Date());
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [period]);
 
@@ -192,13 +192,13 @@ export default function Analytics() {
     fetchChartData(period);
   }, [period]);
 
-  // Polling logic: fetch data every 30 seconds if autoSync is running
+  // Polling logic: fetch data every 5 minutes if autoSync is running (Silent Refresh)
   useEffect(() => {
     let interval = null;
     if (autoSyncRunning) {
       interval = setInterval(() => {
-        fetchAll(period);
-      }, 300000); // 5 minutes (300,000ms)
+        fetchAll(period, true); // Silent refresh
+      }, 300000); // 5 minutes
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -227,13 +227,16 @@ export default function Analytics() {
     setSyncing(true);
     try {
       const res = await fetch('/api/analytics/sync-engagement', { method: 'POST' });
+      const data = await res.json();
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text.includes('<!DOCTYPE') ? 'Backend returned HTML.' : `HTTP ${res.status}`);
+        throw new Error(data.error || `HTTP ${res.status}`);
       }
-      await fetchAll(period);
+      // Hot Sync: Refresh data silently without blocking the UI
+      await fetchAll(period, true);
+      // alert(`Đã đồng bộ thành công ${data.updatedCount || 0} bài viết.`);
     } catch (err) {
       console.error('Sync engagement error:', err.message);
+      alert(`Lỗi đồng bộ: ${err.message}`);
     } finally {
       setSyncing(false);
     }

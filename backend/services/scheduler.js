@@ -115,7 +115,7 @@ async function worker() {
                 await configService.prisma.post.update({
                     where: { id: post.id },
                     data: {
-                        fbPostId: fbResult.id,
+                        fbPostId: fbResult.post_id || fbResult.id,
                         status: 'PUBLISHED',
                         publishedAt: new Date(),
                         imageUrl: imageUrl // Store the used image URL
@@ -125,7 +125,7 @@ async function worker() {
                 // For posts that came from Sheets but not yet in DB
                 await configService.prisma.post.create({
                     data: {
-                        fbPostId: fbResult.id,
+                        fbPostId: fbResult.post_id || fbResult.id,
                         title: post.title,
                         content: post.content,
                         caption: post.caption,
@@ -134,7 +134,6 @@ async function worker() {
                         imageUrl: imageUrl,
                         status: 'PUBLISHED',
                         publishedAt: new Date()
-
                     }
                 }).catch(e => console.error('Error saving post record:', e.message));
             }
